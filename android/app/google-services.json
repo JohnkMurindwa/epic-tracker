@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "931856781528",
+    "project_id": "epic-tracker-5b28b",
+    "storage_bucket": "epic-tracker-5b28b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:931856781528:android:64395b300ef3fc4c8c07ad",
+        "android_client_info": {
+          "package_name": "com.example.epic_tracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA5ckZoK49YqVaCRiUOuJkhh3FKcIXi06c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
