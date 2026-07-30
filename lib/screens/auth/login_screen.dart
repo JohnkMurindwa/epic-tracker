@@ -4,7 +4,6 @@ import '../../models/user_model.dart';
 import 'signup_screen.dart';
 import '../installer/installer_dashboard.dart';
 import '../foreman/foreman_dashboard.dart';
-import '../admin/admin_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,6 +20,8 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _isInstallerLogin = false;
 
+  static const Color _purple = Color(0xFF7440D8);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -32,11 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // Logo
-              const Icon(
-                Icons.construction,
-                size: 80,
-                color: Colors.deepOrange,
-              ),
+              const Icon(Icons.construction, size: 80, color: _purple),
               const SizedBox(height: 16),
               // Title
               const Text(
@@ -44,7 +41,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
-                  color: Colors.deepOrange,
+                  color: _purple,
                 ),
               ),
               const SizedBox(height: 8),
@@ -69,12 +66,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
                             color: !_isInstallerLogin
-                                ? Colors.deepOrange
+                                ? _purple
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            'Foreman / Admin',
+                            'Supervisor',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: !_isInstallerLogin
@@ -93,7 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
                             color: _isInstallerLogin
-                                ? Colors.deepOrange
+                                ? _purple
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -127,6 +124,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: _purple, width: 2),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -139,6 +140,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     prefixIcon: const Icon(Icons.lock_outlined),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: _purple, width: 2),
                     ),
                   ),
                 ),
@@ -160,6 +165,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: _purple, width: 2),
+                    ),
                   ),
                 ),
               ],
@@ -173,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _login,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepOrange,
+                    backgroundColor: _purple,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -205,7 +214,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: const Text(
                       'Sign Up',
                       style: TextStyle(
-                        color: Colors.deepOrange,
+                        color: _purple,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -223,48 +232,51 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      UserModel? user;
-
       if (_isInstallerLogin) {
-        user = await _authService.signInWithPin(_pinController.text);
+        UserModel? user = await _authService.signInWithPin(_pinController.text);
+
+        if (user != null && mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => InstallerDashboard(user: user),
+            ),
+          );
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Invalid PIN!'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
       } else {
-        user = await _authService.signInWithEmail(
+        final response = await _authService.signInWithEmail(
           email: _emailController.text,
           password: _passwordController.text,
         );
-      }
 
-      if (user != null && mounted) {
-        // Route based on role
-        Widget dashboard;
-
-        switch (user.role) {
-          case 'installer':
-          case 'site_leader':
-            dashboard = InstallerDashboard(user: user);
-            break;
-          case 'foreman':
-            dashboard = ForemanDashboard(user: user);
-            break;
-          case 'admin':
-            dashboard = AdminDashboard(user: user);
-            break;
-          default:
-            dashboard = InstallerDashboard(user: user);
-        }
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => dashboard),
-        );
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Invalid credentials!'),
-              backgroundColor: Colors.red,
+        if (response['success'] == true && mounted) {
+          UserModel user = response['user'] as UserModel;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ForemanDashboard(user: user),
             ),
           );
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  response['message'] as String? ?? 'Login failed!',
+                ),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
         }
       }
     } finally {

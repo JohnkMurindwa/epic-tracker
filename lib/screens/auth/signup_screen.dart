@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
+import '../../models/user_model.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -242,7 +243,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   void _signUp() async {
-    // Validate fields
     if (_nameController.text.isEmpty ||
         _emailController.text.isEmpty ||
         _phoneController.text.isEmpty ||
@@ -259,7 +259,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final user = await _authService.signUp(
+      final response = await _authService.signUp(
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
         phone: _phoneController.text.trim(),
@@ -267,8 +267,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
         role: _selectedRole,
       );
 
-      if (user != null && mounted) {
-        // Check role — PIN only for installers and site leaders
+      if (response['success'] == true && mounted) {
+        UserModel user = response['user'];
+
         if (_selectedRole == 'installer' || _selectedRole == 'site_leader') {
           showDialog(
             context: context,
@@ -313,7 +314,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
           );
         } else {
-          // Foreman/Admin — just show success message
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Account created! Please sign in.'),
@@ -325,8 +325,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Sign up failed. Please try again!'),
+            SnackBar(
+              content: Text(response['message'] ?? 'Sign up failed!'),
               backgroundColor: Colors.red,
             ),
           );

@@ -4,6 +4,7 @@ import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import '../auth/login_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../widgets/epic_week_header.dart';
 
 class AdminDashboard extends StatefulWidget {
   final UserModel user;
@@ -21,93 +22,133 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        backgroundColor: Colors.deepOrange,
-        foregroundColor: Colors.white,
-        title: Text('Hi ${widget.user.name} 👑'),
-        actions: [
-          IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
-        ],
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _firestoreService.getProjects(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: Colors.deepOrange),
-            );
-          }
+      body: Column(
+        children: [
+          EpicWeekHeader(userName: widget.user.name, userRole: 'Admin'),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _firestoreService.getProjects(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: Colors.deepOrange),
+                  );
+                }
 
-          final projects = snapshot.data?.docs ?? [];
+                final projects = snapshot.data?.docs ?? [];
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // Header Stats
-              _buildHeaderStats(projects),
-              const SizedBox(height: 16),
+                return ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    _buildHeaderStats(projects),
+                    const SizedBox(height: 16),
 
-              // Add Project Button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton.icon(
-                  onPressed: _showAddProjectDialog,
-                  icon: const Icon(Icons.add),
-                  label: const Text(
-                    'Add New Project',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepOrange,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton.icon(
+                        onPressed: _showAddProjectDialog,
+                        icon: const Icon(Icons.add),
+                        label: const Text(
+                          'Add New Project',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.deepOrange,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-              // Projects List
-              const Text(
-                'All Projects',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
+                    const Text(
+                      'All Projects',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
 
-              if (projects.isEmpty)
-                Center(
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 32),
-                      Icon(
-                        Icons.construction,
-                        size: 80,
-                        color: Colors.grey[400],
+                    if (projects.isEmpty)
+                      Center(
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 32),
+                            Icon(
+                              Icons.construction,
+                              size: 80,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No projects yet',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Tap "Add New Project" to get started',
+                              style: TextStyle(color: Colors.grey[400]),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      ...projects.map((doc) {
+                        Map<String, dynamic> data =
+                            doc.data() as Map<String, dynamic>;
+                        return _buildProjectCard(doc.id, data);
+                      }),
+
+                    const SizedBox(height: 32),
+                    Center(
+                      child: FractionallySizedBox(
+                        widthFactor: 0.85,
+                        child: GestureDetector(
+                          onTap: _logout,
+                          child: Container(
+                            height: 52,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[700],
+                              borderRadius: BorderRadius.circular(26),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withValues(alpha: 0.3),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: const Center(
+                              child: Text(
+                                'sign out',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No projects yet',
-                        style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Tap "Add New Project" to get started',
-                        style: TextStyle(color: Colors.grey[400]),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                ...projects.map((doc) {
-                  Map<String, dynamic> data =
-                      doc.data() as Map<String, dynamic>;
-                  return _buildProjectCard(doc.id, data);
-                }),
-            ],
-          );
-        },
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -187,10 +228,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget _buildProjectCard(String projectId, Map<String, dynamic> data) {
     String name = data['name'] ?? 'Unknown Project';
     String location = data['location'] ?? 'Unknown Location';
-    double totalSqft = (data['total_sqft'] ?? 0).toDouble();
-    double completedSqft = (data['completed_sqft'] ?? 0).toDouble();
     String status = data['status'] ?? 'active';
-    double progress = totalSqft > 0 ? (completedSqft / totalSqft) : 0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -207,7 +245,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
       ),
       child: Column(
         children: [
-          // Project Header
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -243,7 +280,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     ],
                   ),
                 ),
-                // Status toggle
                 GestureDetector(
                   onTap: () => _toggleProjectStatus(projectId, status),
                   child: Container(
@@ -268,116 +304,60 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ],
             ),
           ),
-
-          // Progress Section
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Column(
+            child: Row(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Progress',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showEditProjectDialog(projectId, data),
+                    icon: const Icon(
+                      Icons.edit,
+                      color: Colors.deepOrange,
+                      size: 18,
                     ),
-                    Text(
-                      '${(progress * 100).toStringAsFixed(1)}%',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.deepOrange,
-                        fontSize: 18,
+                    label: const Text(
+                      'Edit',
+                      style: TextStyle(color: Colors.deepOrange),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.deepOrange),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    backgroundColor: Colors.grey[200],
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      progress >= 1.0 ? Colors.green : Colors.deepOrange,
-                    ),
-                    minHeight: 12,
                   ),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '✅ ${completedSqft.toStringAsFixed(1)} sqft done',
-                      style: const TextStyle(color: Colors.green),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _toggleProjectStatus(projectId, status),
+                    icon: Icon(
+                      status == 'active'
+                          ? Icons.pause_circle
+                          : Icons.play_circle,
+                      color: status == 'active' ? Colors.orange : Colors.green,
+                      size: 18,
                     ),
-                    Text(
-                      '🔴 ${(totalSqft - completedSqft).toStringAsFixed(1)} sqft left',
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Action Buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () =>
-                            _showEditProjectDialog(projectId, data),
-                        icon: const Icon(
-                          Icons.edit,
-                          color: Colors.deepOrange,
-                          size: 18,
-                        ),
-                        label: const Text(
-                          'Edit',
-                          style: TextStyle(color: Colors.deepOrange),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.deepOrange),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
+                    label: Text(
+                      status == 'active' ? 'Pause' : 'Activate',
+                      style: TextStyle(
+                        color: status == 'active'
+                            ? Colors.orange
+                            : Colors.green,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () =>
-                            _toggleProjectStatus(projectId, status),
-                        icon: Icon(
-                          status == 'active'
-                              ? Icons.pause_circle
-                              : Icons.play_circle,
-                          color: status == 'active'
-                              ? Colors.orange
-                              : Colors.green,
-                          size: 18,
-                        ),
-                        label: Text(
-                          status == 'active' ? 'Pause' : 'Activate',
-                          style: TextStyle(
-                            color: status == 'active'
-                                ? Colors.orange
-                                : Colors.green,
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                            color: status == 'active'
-                                ? Colors.orange
-                                : Colors.green,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(
+                        color: status == 'active'
+                            ? Colors.orange
+                            : Colors.green,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
@@ -390,13 +370,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
   void _showAddProjectDialog() {
     final nameController = TextEditingController();
     final locationController = TextEditingController();
-    final sqftController = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text(
-          '➕ Add New Project',
+          'Add New Project',
           style: TextStyle(color: Colors.deepOrange),
         ),
         content: SingleChildScrollView(
@@ -407,7 +386,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 controller: nameController,
                 decoration: InputDecoration(
                   labelText: 'Project Name',
-                  hintText: 'e.g. Karen Residence',
+                  hintText: 'e.g. Smith Kitchen Remodel',
                   prefixIcon: const Icon(Icons.business),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -419,22 +398,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 controller: locationController,
                 decoration: InputDecoration(
                   labelText: 'Location',
-                  hintText: 'e.g. Karen, Nairobi',
+                  hintText: 'e.g. Costa Mesa, CA',
                   prefixIcon: const Icon(Icons.location_on),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: sqftController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Total Square Footage',
-                  hintText: 'e.g. 500',
-                  suffixText: 'sqft',
-                  prefixIcon: const Icon(Icons.straighten),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -445,15 +410,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
               if (nameController.text.isEmpty ||
-                  locationController.text.isEmpty ||
-                  sqftController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                  locationController.text.isEmpty) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
                   const SnackBar(
                     content: Text('Please fill in all fields!'),
                     backgroundColor: Colors.red,
@@ -462,21 +426,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 return;
               }
 
+              final navigator = Navigator.of(dialogContext);
+
               await _firestoreService.addProject(
                 name: nameController.text.trim(),
                 location: locationController.text.trim(),
-                totalSqft: double.tryParse(sqftController.text) ?? 0,
               );
 
-              if (mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Project added successfully! ✅'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
+              navigator.pop();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.deepOrange,
@@ -492,15 +449,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
   void _showEditProjectDialog(String projectId, Map<String, dynamic> data) {
     final nameController = TextEditingController(text: data['name']);
     final locationController = TextEditingController(text: data['location']);
-    final sqftController = TextEditingController(
-      text: data['total_sqft'].toString(),
-    );
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text(
-          '✏️ Edit Project',
+          'Edit Project',
           style: TextStyle(color: Colors.deepOrange),
         ),
         content: SingleChildScrollView(
@@ -528,45 +482,25 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: sqftController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Total Square Footage',
-                  suffixText: 'sqft',
-                  prefixIcon: const Icon(Icons.straighten),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
             ],
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
+              final navigator = Navigator.of(dialogContext);
+
               await _firestoreService.updateProject(
                 projectId: projectId,
                 name: nameController.text.trim(),
                 location: locationController.text.trim(),
-                totalSqft: double.tryParse(sqftController.text) ?? 0,
               );
 
-              if (mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Project updated! ✅'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
+              navigator.pop();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.deepOrange,
@@ -591,12 +525,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Future<void> _logout() async {
+    final navigator = Navigator.of(context);
     await _authService.signOut();
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
-    }
+    navigator.pushReplacement(
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+    );
   }
 }

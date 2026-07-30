@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
+import 'package:flutter/foundation.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -13,7 +14,7 @@ class AuthService {
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   // Sign up with email and password
-  Future<UserModel?> signUp({
+  Future<Map<String, dynamic>> signUp({
     required String name,
     required String email,
     required String phone,
@@ -27,9 +28,9 @@ class AuthService {
         password: password,
       );
 
-      // Generate 5 digit PIN only for installers and site leaders
+      // Generate 5 digit PIN only for installers
       String pin = '';
-      if (role == 'installer' || role == 'site_leader') {
+      if (role == 'installer') {
         pin = _generatePin();
       }
 
@@ -46,15 +47,32 @@ class AuthService {
 
       await _db.collection('users').doc(result.user!.uid).set(user.toMap());
 
-      return user;
+      return {'success': true, 'user': user};
+    } on FirebaseAuthException catch (e) {
+      debugPrint('Sign up error: ${e.code}');
+      String message = '';
+      switch (e.code) {
+        case 'email-already-in-use':
+          message = 'This email is already registered!';
+          break;
+        case 'weak-password':
+          message = 'Password must be at least 6 characters!';
+          break;
+        case 'invalid-email':
+          message = 'Please enter a valid email address!';
+          break;
+        default:
+          message = 'Sign up failed: ${e.message}';
+      }
+      return {'success': false, 'message': message};
     } catch (e) {
-      print('Sign up error: $e');
-      return null;
+      debugPrint('Sign up error: $e');
+      return {'success': false, 'message': 'Something went wrong. Try again!'};
     }
   }
 
   // Sign in with email and password
-  Future<UserModel?> signInWithEmail({
+  Future<Map<String, dynamic>> signInWithEmail({
     required String email,
     required String password,
   }) async {
@@ -69,10 +87,32 @@ class AuthService {
           .doc(result.user!.uid)
           .get();
 
-      return UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      UserModel user = UserModel.fromMap(
+        doc.data() as Map<String, dynamic>,
+        doc.id,
+      );
+
+      return {'success': true, 'user': user};
+    } on FirebaseAuthException catch (e) {
+      debugPrint('Sign in error: ${e.code}');
+      String message = '';
+      switch (e.code) {
+        case 'user-not-found':
+          message = 'No account found with this email!';
+          break;
+        case 'wrong-password':
+          message = 'Incorrect password!';
+          break;
+        case 'invalid-credential':
+          message = 'Invalid email or password!';
+          break;
+        default:
+          message = 'Sign in failed: ${e.message}';
+      }
+      return {'success': false, 'message': message};
     } catch (e) {
-      print('Sign in error: $e');
-      return null;
+      debugPrint('Sign in error: $e');
+      return {'success': false, 'message': 'Something went wrong. Try again!'};
     }
   }
 
@@ -82,17 +122,20 @@ class AuthService {
       QuerySnapshot result = await _db
           .collection('users')
           .where('pin', isEqualTo: pin)
-          .where('role', whereIn: ['installer', 'site_leader'])
+          .where('role', isEqualTo: 'installer')
           .get();
 
       if (result.docs.isEmpty) return null;
+
+      // Create a Firebase Auth session so Storage/Firestore rules work
+      await _auth.signInAnonymously();
 
       return UserModel.fromMap(
         result.docs.first.data() as Map<String, dynamic>,
         result.docs.first.id,
       );
     } catch (e) {
-      print('PIN sign in error: $e');
+      debugPrint('PIN sign in error: $e');
       return null;
     }
   }
@@ -115,7 +158,7 @@ class AuthService {
 
       return UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
     } catch (e) {
-      print('Get user error: $e');
+      debugPrint('Get user error: $e');
       return null;
     }
   }
