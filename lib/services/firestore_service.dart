@@ -47,12 +47,14 @@ class FirestoreService {
   Future<String> addArea({
     required String projectId,
     required String projectName,
+    required String levelName,
     required String areaName,
     required double totalCrewDays,
   }) async {
     final doc = await _db.collection('areas').add({
       'projectId': projectId,
       'projectName': projectName,
+      'levelName': levelName,
       'name': areaName,
       'totalCrewDays': totalCrewDays,
       'consumedCrewDays': 0.0,
@@ -144,6 +146,7 @@ class FirestoreService {
     required String projectId,
     required String projectName,
     required GeoPoint location,
+    String? levelName,
   }) async {
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
@@ -160,6 +163,7 @@ class FirestoreService {
       'areaName': areaName,
       'projectId': projectId,
       'projectName': projectName,
+      'levelName': levelName ?? 'Unassigned',
       'clockIn': Timestamp.now(),
       'clockOut': null,
       'description': null,

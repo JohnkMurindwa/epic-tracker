@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Epic Tracker</string>
+	<string>Epic Installation</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -26,14 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Epic Tracker needs your location to verify job site check in</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Epic Tracker needs your location to verify job site check in</string>
-	<key>NSCameraUsageDescription</key>
-	<string>Epic Tracker needs camera access to upload progress photos</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Epic Tracker needs photo library access to upload progress photos</string>
+	<string>Epic Installation needs your location to verify you are on the job site.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Epic Installation needs your location to verify you are on the job site when clocking in.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

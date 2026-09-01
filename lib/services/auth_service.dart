@@ -28,9 +28,11 @@ class AuthService {
         password: password,
       );
 
-      // Generate 5 digit PIN only for installers
+      // Generate 5 digit PIN for all installation workers
       String pin = '';
-      if (role == 'installer') {
+      if (role == 'installer' ||
+          role == 'junior_installer' ||
+          role == 'helper') {
         pin = _generatePin();
       }
 
@@ -122,7 +124,7 @@ class AuthService {
       QuerySnapshot result = await _db
           .collection('users')
           .where('pin', isEqualTo: pin)
-          .where('role', isEqualTo: 'installer')
+          .where('role', whereIn: ['installer', 'junior_installer', 'helper'])
           .get();
 
       if (result.docs.isEmpty) return null;

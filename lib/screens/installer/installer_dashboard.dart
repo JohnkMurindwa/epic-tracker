@@ -1,11 +1,9 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
-import '../../services/storage_service.dart';
 import '../auth/login_screen.dart';
 import '../../widgets/epic_week_header.dart';
 import 'package:intl/intl.dart';
@@ -21,13 +19,9 @@ class InstallerDashboard extends StatefulWidget {
 class _InstallerDashboardState extends State<InstallerDashboard> {
   final AuthService _authService = AuthService();
   final FirestoreService _firestoreService = FirestoreService();
-  final StorageService _storageService = StorageService();
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  static const Color _purple = Color(0xFF7440D8);
-
   bool _isLoading = false;
-  bool _isUploadingPhoto = false;
   bool _isClockedIn = false;
   bool _isOnLunch = false;
   bool _hasHadLunch = false;
@@ -35,8 +29,6 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
   String? _currentAreaId;
   String? _currentAreaName;
   String? _currentProjectName;
-  String? _photoUrl;
-  File? _photo;
   List<Map<String, dynamic>> _timeEntries = [];
   DateTime? _lunchStartTime;
   DateTime _selectedDay = DateTime.now();
@@ -72,7 +64,6 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
 
       setState(() {
         _timeEntries = entries;
-        _photoUrl = log['photo_url'] as String?;
         _isDayComplete = log['is_day_complete'] ?? false;
         _isOnLunch = log['is_on_lunch'] ?? false;
         _hasHadLunch = log['lunch_end'] != null;
@@ -115,7 +106,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Colors.white,
       body: Column(
         children: [
           EpicWeekHeader(
@@ -166,7 +157,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                                 children: [
                                   Icon(
                                     Icons.check_circle,
-                                    color: Colors.green,
+                                    color: Colors.black87,
                                     size: 22,
                                   ),
                                   SizedBox(width: 10),
@@ -182,26 +173,13 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                               ),
                               if (crewDaysLeft != null) ...[
                                 const SizedBox(height: 10),
-                                Row(
-                                  children: [
-                                    Text(
-                                      '${crewDaysLeft.toStringAsFixed(1)} crew days to go',
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w800,
-                                        color: Colors.green,
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    Text(
-                                      '≈ ${crewDaysLeft.ceil()} ${crewDaysLeft.ceil() == 1 ? 'day' : 'days'} remaining',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.green[700],
-                                      ),
-                                    ),
-                                  ],
+                                Text(
+                                  '${crewDaysLeft.toStringAsFixed(1)} crew days to go',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.black87,
+                                  ),
                                 ),
                               ],
                             ],
@@ -211,54 +189,6 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                     ),
                     const SizedBox(height: 16),
                     if (_timeEntries.isNotEmpty) _buildTodayEntries(),
-                    if (_photoUrl != null) ...[
-                      const SizedBox(height: 16),
-                      const Text(
-                        'End of Day Photo',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      GestureDetector(
-                        onTap: () {
-                          showDialog(
-                            context: context,
-                            builder: (dialogContext) => Dialog(
-                              backgroundColor: Colors.transparent,
-                              insetPadding: const EdgeInsets.all(16),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: Image.network(
-                                  _photoUrl!,
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.network(
-                            _photoUrl!,
-                            height: 160,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => Container(
-                              height: 160,
-                              color: Colors.grey[200],
-                              child: const Center(
-                                child: Icon(
-                                  Icons.broken_image,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
                   ]
                   // ─── Active work flow ───────────────────
                   else ...[
@@ -281,17 +211,14 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: Colors.orange.withValues(alpha: 0.1),
+                          color: Colors.grey[500],
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.orange.withValues(alpha: 0.3),
-                          ),
                         ),
                         child: Row(
                           children: [
                             const Icon(
                               Icons.lunch_dining,
-                              color: Colors.orange,
+                              color: Colors.white,
                               size: 22,
                             ),
                             const SizedBox(width: 10),
@@ -303,15 +230,15 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                                   style: TextStyle(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 15,
-                                    color: Colors.orange,
+                                    color: Colors.white,
                                   ),
                                 ),
                                 if (_lunchStartTime != null)
                                   Text(
                                     'Started at ${_formatTime(_lunchStartTime!)}',
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       fontSize: 12,
-                                      color: Colors.orange[400],
+                                      color: Colors.white70,
                                     ),
                                   ),
                               ],
@@ -322,7 +249,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                       const SizedBox(height: 16),
                       _buildPillButton(
                         label: 'end lunch',
-                        color: Colors.blue[600]!,
+                        color: Colors.grey[600]!,
                         onTap: _endLunch,
                       ),
                     ]
@@ -336,25 +263,29 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                         const SizedBox(height: 12),
                         _buildPillButton(
                           label: 'start lunch',
-                          color: Colors.orange[700]!,
+                          color: Colors.grey[500]!,
                           onTap: _startLunchFromArea,
                         ),
                       ],
                       const SizedBox(height: 12),
                       _buildPillButton(
                         label: 'clock out',
-                        color: _purple,
+                        color: Colors.black87,
                         onTap: _showClockOutDialog,
                       ),
                     ],
 
-                    // End of day photo (only when not clocked in, not on lunch, has entries)
+                    // Finish day (after last clock out — no photo needed)
                     if (!_isClockedIn &&
                         !_isOnLunch &&
                         _timeEntries.isNotEmpty &&
                         !_isDayComplete) ...[
                       const SizedBox(height: 20),
-                      _buildEndOfDayPhoto(),
+                      _buildPillButton(
+                        label: 'finish day',
+                        color: Colors.black87,
+                        onTap: _finishDay,
+                      ),
                     ],
                   ],
 
@@ -410,162 +341,152 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
           cardColor = const Color(0xFFEF6C00); // orange — halfway warning
           urgencyLabel = 'PUSH HARD';
         } else {
-          cardColor = _purple;
+          cardColor = Colors.black87;
           urgencyLabel = 'ON TRACK';
         }
 
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: cardColor.withValues(alpha: 0.4),
-                blurRadius: 14,
-                offset: const Offset(0, 5),
+        return Center(
+          child: FractionallySizedBox(
+            widthFactor: 0.9,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: cardColor.withValues(alpha: 0.4),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _currentAreaName ?? 'Current Area',
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _currentAreaName ?? 'Current Area',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Text(
+                              _currentProjectName ?? '',
+                              style: const TextStyle(
+                                color: Colors.white60,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Text(
+                          urgencyLabel,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // ─── THE BIG COUNTDOWN ───
+                  Center(
+                    child: Column(
+                      children: [
+                        Text(
+                          crewDaysLeft.toStringAsFixed(1),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 48,
+                            fontWeight: FontWeight.w900,
+                            height: 1.0,
+                            letterSpacing: -2,
                           ),
                         ),
                         Text(
-                          _currentProjectName ?? '',
-                          style: const TextStyle(
-                            color: Colors.white60,
-                            fontSize: 13,
+                          'CREW DAYS LEFT',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 2.0,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      urgencyLabel,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.8,
+                  const SizedBox(height: 10),
+
+                  // Progress bar
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      backgroundColor: Colors.white.withValues(alpha: 0.25),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        Colors.white,
                       ),
+                      minHeight: 6,
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
+                  const SizedBox(height: 6),
 
-              // ─── THE BIG COUNTDOWN ───
-              Center(
-                child: Column(
-                  children: [
-                    Text(
-                      crewDaysLeft.toStringAsFixed(1),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 64,
-                        fontWeight: FontWeight.w900,
-                        height: 1.0,
-                        letterSpacing: -2,
+                  // Bottom row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.people,
+                            color: Colors.white70,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$peopleCount working',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'CREW DAYS LEFT',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 2.5,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Text(
-                        '≈ ${crewDaysLeft.ceil()} working ${crewDaysLeft.ceil() == 1 ? 'day' : 'days'} to finish',
+                      Text(
+                        '${(progress * 100).toStringAsFixed(0)}% done',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Progress bar
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  backgroundColor: Colors.white.withValues(alpha: 0.25),
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                  minHeight: 10,
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // Bottom row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.people, color: Colors.white70, size: 16),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$peopleCount working',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 13,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ],
                   ),
-                  Text(
-                    '${(progress * 100).toStringAsFixed(0)}% done',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
                 ],
               ),
-            ],
+            ),
           ),
         );
       },
@@ -588,7 +509,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
           return const Center(
             child: Padding(
               padding: EdgeInsets.all(20),
-              child: CircularProgressIndicator(color: _purple),
+              child: CircularProgressIndicator(color: Colors.black87),
             ),
           );
         }
@@ -629,7 +550,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                 Icon(
                   allDone ? Icons.task_alt : Icons.location_off,
                   size: 48,
-                  color: allDone ? Colors.green[300] : Colors.grey[300],
+                  color: allDone ? Colors.black54 : Colors.grey[300],
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -643,7 +564,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                 const SizedBox(height: 4),
                 Text(
                   allDone
-                      ? 'Take your end-of-day photo below to finish'
+                      ? 'Tap finish day below when you\'re done'
                       : 'Ask your Supervisor to assign you to an area',
                   style: TextStyle(fontSize: 13, color: Colors.grey[400]),
                 ),
@@ -689,13 +610,17 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _purple.withValues(alpha: 0.2)),
+            border: Border.all(color: Colors.black87.withValues(alpha: 0.2)),
           ),
           child: Row(
             children: [
               CircleAvatar(
-                backgroundColor: _purple.withValues(alpha: 0.1),
-                child: const Icon(Icons.location_on, color: _purple, size: 20),
+                backgroundColor: Colors.black87.withValues(alpha: 0.1),
+                child: const Icon(
+                  Icons.location_on,
+                  color: Colors.black87,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -722,7 +647,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: _purple,
+                  color: Colors.black87,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Text(
@@ -750,13 +675,12 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.green.withValues(alpha: 0.1),
+        color: Colors.grey[700],
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.work, color: Colors.green, size: 20),
+          const Icon(Icons.work, color: Colors.white, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -767,12 +691,12 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 15,
-                    color: Colors.green,
+                    color: Colors.white,
                   ),
                 ),
                 Text(
                   _currentProjectName ?? '',
-                  style: TextStyle(fontSize: 12, color: Colors.green[400]),
+                  style: const TextStyle(fontSize: 12, color: Colors.white70),
                 ),
               ],
             ),
@@ -872,7 +796,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                         width: 26,
                         height: 26,
                         decoration: BoxDecoration(
-                          color: isActive ? _purple : Colors.green,
+                          color: isActive ? Colors.black87 : Colors.green,
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -915,7 +839,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                           '${totalHours.toStringAsFixed(1)}h',
                           style: const TextStyle(
                             fontWeight: FontWeight.w700,
-                            color: _purple,
+                            color: Colors.black87,
                             fontSize: 14,
                           ),
                         ),
@@ -948,114 +872,6 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
   // END OF DAY PHOTO
   // ═══════════════════════════════════════════════════════════
 
-  Widget _buildEndOfDayPhoto() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'End of Day Photo',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 10),
-          GestureDetector(
-            onTap: _isUploadingPhoto ? null : _takeEndOfDayPhoto,
-            child: Container(
-              width: double.infinity,
-              height: 160,
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: (_photo != null || _photoUrl != null)
-                      ? Colors.green
-                      : Colors.grey.shade300,
-                  width: 2,
-                ),
-              ),
-              child: _isUploadingPhoto
-                  ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(color: _purple),
-                          SizedBox(height: 8),
-                          Text('Uploading...'),
-                        ],
-                      ),
-                    )
-                  : _photo != null
-                  ? Stack(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-                            _photo!,
-                            width: double.infinity,
-                            height: 160,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                        if (_photoUrl != null)
-                          Positioned(
-                            bottom: 8,
-                            left: 8,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.green,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: const Text(
-                                'Uploaded',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    )
-                  : _photoUrl != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        _photoUrl!,
-                        width: double.infinity,
-                        height: 160,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => _photoPlaceholder(),
-                      ),
-                    )
-                  : _photoPlaceholder(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _photoPlaceholder() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.camera_alt, size: 40, color: Colors.grey[400]),
-        const SizedBox(height: 8),
-        Text('Tap to take photo', style: TextStyle(color: Colors.grey[400])),
-      ],
-    );
-  }
-
   // ═══════════════════════════════════════════════════════════
   // DAY SUMMARY (after finishing day)
   // ═══════════════════════════════════════════════════════════
@@ -1084,7 +900,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
           return const Center(
             child: Padding(
               padding: EdgeInsets.all(40),
-              child: CircularProgressIndicator(color: _purple),
+              child: CircularProgressIndicator(color: Colors.black87),
             ),
           );
         }
@@ -1133,7 +949,6 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
         final entries = List<Map<String, dynamic>>.from(
           data['time_entries'] ?? [],
         );
-        final photoUrl = data['photo_url'] as String?;
 
         // Group by area
         final Map<String, List<Map<String, dynamic>>> areaGroups = {};
@@ -1220,7 +1035,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                           '${areaHours.toStringAsFixed(1)}h',
                           style: const TextStyle(
                             fontWeight: FontWeight.w700,
-                            color: _purple,
+                            color: Colors.black87,
                             fontSize: 15,
                           ),
                         ),
@@ -1246,15 +1061,15 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                           vertical: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: _purple.withValues(alpha: 0.08),
+                          color: Colors.black87.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          '${crewDaysLeftAfter.toStringAsFixed(1)} crew days to go • ≈ ${crewDaysLeftAfter.ceil()} ${crewDaysLeftAfter.ceil() == 1 ? 'day' : 'days'} remaining',
+                          '${crewDaysLeftAfter.toStringAsFixed(1)} crew days to go',
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: _purple,
+                            color: Colors.black87,
                           ),
                         ),
                       ),
@@ -1263,47 +1078,6 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                 ),
               );
             }),
-
-            // Photo
-            if (photoUrl != null) ...[
-              const SizedBox(height: 6),
-              const Text(
-                'End of Day Photo',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              GestureDetector(
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (dialogContext) => Dialog(
-                      backgroundColor: Colors.transparent,
-                      insetPadding: const EdgeInsets.all(16),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(photoUrl, fit: BoxFit.contain),
-                      ),
-                    ),
-                  );
-                },
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    photoUrl,
-                    height: 160,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => Container(
-                      height: 160,
-                      color: Colors.grey[200],
-                      child: const Center(
-                        child: Icon(Icons.broken_image, color: Colors.grey),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
           ],
         );
       },
@@ -1317,7 +1091,12 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
   Future<void> _clockIn(Map<String, dynamic> area) async {
     setState(() => _isLoading = true);
     try {
-      Position position = await _getCurrentLocation();
+      Position? position = await _getCurrentLocation();
+      if (position == null) {
+        // User cancelled the location dialog — just abort silently
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
 
       await _firestoreService.clockInToArea(
         userId: widget.user.id,
@@ -1327,6 +1106,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
         areaName: area['name'],
         projectId: area['projectId'],
         projectName: area['projectName'],
+        levelName: area['levelName'],
         location: GeoPoint(position.latitude, position.longitude),
       );
 
@@ -1344,7 +1124,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Clocked in at ${area['name']}'),
-          backgroundColor: Colors.green,
+          backgroundColor: Colors.black87,
         ),
       );
     } catch (e) {
@@ -1358,112 +1138,159 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
   }
 
   void _showClockOutDialog() {
-    final descCtrl = TextEditingController();
+    final List<String> descriptionOptions = [
+      'Waterproofing at shower pan',
+      'Drain installation at shower pan',
+      'Paper & lath',
+      'Scratch',
+      'Float walls',
+      'Hydroban paint',
+      'Layout tile',
+      'Install tile',
+      'Grout',
+      'Float shower pan',
+      'Float bath floor',
+      'Apply grout',
+      'Seal the tile',
+    ];
+
+    final Set<int> selected = {};
 
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(
-          'Clock out of $_currentAreaName',
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-        ),
-        content: TextField(
-          controller: descCtrl,
-          maxLines: 3,
-          decoration: InputDecoration(
-            labelText: 'What did you do?',
-            hintText: 'e.g. Installed backsplash rows 1-4, cut border tiles',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(
+            'Clock out of $_currentAreaName',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (descCtrl.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please describe what you did'),
-                    backgroundColor: Colors.orange,
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'What did you do?',
+                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 10),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: descriptionOptions.length,
+                    itemBuilder: (context, index) {
+                      final isSelected = selected.contains(index);
+                      return GestureDetector(
+                        onTap: () {
+                          setDialogState(() {
+                            if (isSelected) {
+                              selected.remove(index);
+                            } else {
+                              selected.add(index);
+                            }
+                          });
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? Colors.black87
+                                : Colors.grey[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isSelected
+                                    ? Icons.check_circle
+                                    : Icons.circle_outlined,
+                                size: 20,
+                                color: isSelected
+                                    ? Colors.white
+                                    : Colors.grey[400],
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  descriptionOptions[index],
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : Colors.black87,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                );
-                return;
-              }
-
-              final description = descCtrl.text.trim();
-
-              // Close the dialog FIRST — prevents double-tap double-pop
-              Navigator.pop(dialogContext);
-
-              // Then do the async work
-              _firestoreService
-                  .clockOutOfArea(
-                    userId: widget.user.id,
-                    description: description,
-                  )
-                  .then((_) {
-                    if (!mounted) return;
-                    setState(() {
-                      _isClockedIn = false;
-                      _currentAreaId = null;
-                      _currentAreaName = null;
-                      _currentProjectName = null;
-                    });
-                    _loadTodaysState();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Clocked out'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  });
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _purple,
-              foregroundColor: Colors.white,
+                ),
+              ],
             ),
-            child: const Text('Clock Out'),
           ),
-        ],
-      ),
-    );
-  }
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (selected.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please select what you did'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                  return;
+                }
 
-  Future<void> _takeEndOfDayPhoto() async {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (sheetContext) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'End of Day Photo',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.camera_alt, color: _purple),
-              title: const Text('Take Photo'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _processPhoto(fromCamera: true);
+                final sortedSelection = selected.toList()..sort();
+                final description = sortedSelection
+                    .map((i) => descriptionOptions[i])
+                    .join(', ');
+
+                Navigator.pop(dialogContext);
+
+                _firestoreService
+                    .clockOutOfArea(
+                      userId: widget.user.id,
+                      description: description,
+                    )
+                    .then((_) {
+                      if (!mounted) return;
+                      setState(() {
+                        _isClockedIn = false;
+                        _currentAreaId = null;
+                        _currentAreaName = null;
+                        _currentProjectName = null;
+                      });
+                      _loadTodaysState();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Clocked out'),
+                          backgroundColor: Colors.black87,
+                        ),
+                      );
+                    });
               },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library, color: _purple),
-              title: const Text('Choose from Gallery'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _processPhoto(fromCamera: false);
-              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black87,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Clock Out'),
             ),
           ],
         ),
@@ -1471,50 +1298,17 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
     );
   }
 
-  Future<void> _processPhoto({required bool fromCamera}) async {
-    File? imageFile = await _storageService.pickImage(fromCamera: fromCamera);
-    if (imageFile == null) return;
+  Future<void> _finishDay() async {
+    await _firestoreService.completeDayLog(userId: widget.user.id);
+    setState(() => _isDayComplete = true);
 
-    setState(() {
-      _isUploadingPhoto = true;
-      _photo = imageFile;
-    });
-
-    try {
-      String url = await _storageService.uploadProgressPhoto(
-        imageFile: imageFile,
-        userId: widget.user.id,
-        isMorning: false,
-      );
-
-      await _firestoreService.saveDayPhoto(
-        userId: widget.user.id,
-        photoUrl: url,
-      );
-
-      // Photo upload completes the day automatically
-      await _firestoreService.completeDayLog(userId: widget.user.id);
-
-      if (!mounted) return;
-      setState(() {
-        _isUploadingPhoto = false;
-        _photoUrl = url;
-        _isDayComplete = true;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Day complete! Great work.'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isUploadingPhoto = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$e'), backgroundColor: Colors.red),
-      );
-    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Day complete! Great work.'),
+        backgroundColor: Colors.black87,
+      ),
+    );
   }
 
   /// Start lunch while clocked in at an area.
@@ -1543,38 +1337,6 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
       _lunchStartTime = DateTime.now();
       // NOTE: stays clocked in — lunch is just a pause
     });
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Lunch started at ${_formatTime(_lunchStartTime!)}'),
-        backgroundColor: Colors.orange,
-      ),
-    );
-  }
-
-  Future<void> _startLunch() async {
-    setState(() {
-      _isOnLunch = true;
-      _lunchStartTime = DateTime.now();
-    });
-
-    // Save lunch state to Firestore
-    final now = DateTime.now();
-    final todayStart = DateTime(now.year, now.month, now.day);
-    final snapshot = await _db
-        .collection('daily_logs')
-        .where('installer_id', isEqualTo: widget.user.id)
-        .where('log_date', isEqualTo: Timestamp.fromDate(todayStart))
-        .limit(1)
-        .get();
-
-    if (snapshot.docs.isNotEmpty) {
-      await snapshot.docs.first.reference.update({
-        'is_on_lunch': true,
-        'lunch_start': Timestamp.now(),
-      });
-    }
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1618,15 +1380,51 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
     );
   }
 
-  Future<Position> _getCurrentLocation() async {
+  /// Returns null if permission denied (caller handles gracefully).
+  Future<Position?> _getCurrentLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) throw 'Location services are disabled';
+    if (!serviceEnabled) {
+      throw 'Location services are disabled. Please enable them in Settings.';
+    }
 
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied)
-        throw 'Location permission denied';
+      if (permission == LocationPermission.denied) {
+        throw 'Location permission denied. Please allow location access to clock in.';
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      if (mounted) {
+        await showDialog(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Location Access Required'),
+            content: const Text(
+              'You previously denied location access. Epic Installation needs your location to verify you\'re on the job site.\n\nPlease open Settings and enable location for this app.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                  Geolocator.openAppSettings();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black87,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Open Settings'),
+              ),
+            ],
+          ),
+        );
+      }
+      return null; // Silently abort — no error message
     }
 
     return await Geolocator.getCurrentPosition();

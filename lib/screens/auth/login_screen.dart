@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../services/auth_service.dart';
 import '../../models/user_model.dart';
 import 'signup_screen.dart';
 import '../installer/installer_dashboard.dart';
-import '../foreman/foreman_dashboard.dart';
+import '../supervisor/supervisor_dashboard.dart';
+import '../admin/admin_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -24,96 +27,345 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Web: centered card layout. Mobile: full screen.
+    if (kIsWeb) return _buildWebLogin();
+    return _buildMobileLogin();
+  }
+
+  Widget _buildWebLogin() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
+      body: Center(
+        child: SingleChildScrollView(
+          child: Container(
+            width: 420,
+            margin: const EdgeInsets.symmetric(vertical: 40),
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Logo
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 24,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'EPIC',
+                        style: GoogleFonts.bodoniModa(
+                          fontSize: 48,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFFB22222),
+                          letterSpacing: 5,
+                          height: 1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'c e r a m i c',
+                            style: GoogleFonts.bodoniModa(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.grey[500],
+                              letterSpacing: 2.5,
+                            ),
+                          ),
+                          Text(
+                            '+',
+                            style: GoogleFonts.bodoniModa(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFFB22222),
+                              letterSpacing: 2.5,
+                            ),
+                          ),
+                          Text(
+                            's t o n e',
+                            style: GoogleFonts.bodoniModa(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.grey[500],
+                              letterSpacing: 2.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Admin Dashboard',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Sign in to continue',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                ),
+                const SizedBox(height: 28),
+
+                // Email
+                TextField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: const Icon(Icons.email_outlined, size: 20),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(
+                        color: Colors.black87,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // Password
+                TextField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: const Icon(Icons.lock_outlined, size: 20),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(
+                        color: Colors.black87,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Sign In
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _login,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black87,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Sign In',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileLogin() {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 80, 24, 24),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
               // Logo
-              const Icon(Icons.construction, size: 80, color: _purple),
-              const SizedBox(height: 16),
-              // Title
-              const Text(
-                'Epic Tracker',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: _purple,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Sign in to continue',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-              const SizedBox(height: 32),
-
-              // Toggle between installer and admin login
               Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(12),
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 28,
                 ),
-                child: Row(
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
                   children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() => _isInstallerLogin = false),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: !_isInstallerLogin
-                                ? _purple
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            'Supervisor',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: !_isInstallerLogin
-                                  ? Colors.white
-                                  : Colors.grey,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+                    Text(
+                      'EPIC',
+                      style: GoogleFonts.bodoniModa(
+                        fontSize: 58,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFFB22222),
+                        letterSpacing: 5,
+                        height: 1.0,
                       ),
                     ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() => _isInstallerLogin = true),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: _isInstallerLogin
-                                ? _purple
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            'Installer',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: _isInstallerLogin
-                                  ? Colors.white
-                                  : Colors.grey,
-                              fontWeight: FontWeight.bold,
-                            ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'c e r a m i c',
+                          style: GoogleFonts.bodoniModa(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.grey[500],
+                            letterSpacing: 3,
                           ),
                         ),
-                      ),
+                        Text(
+                          '+',
+                          style: GoogleFonts.bodoniModa(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFB22222),
+                            letterSpacing: 3,
+                          ),
+                        ),
+                        Text(
+                          's t o n e',
+                          style: GoogleFonts.bodoniModa(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.grey[500],
+                            letterSpacing: 3,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
+              const SizedBox(height: 16),
+              const Text(
+                'Installation Tracker',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Sign in to continue',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.grey[400],
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              // Toggle between installer and admin login (mobile only)
+              if (!kIsWeb)
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () =>
+                              setState(() => _isInstallerLogin = false),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: !_isInstallerLogin
+                                  ? Colors.black87
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'Supervisor',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: !_isInstallerLogin
+                                    ? Colors.white
+                                    : Colors.grey[500],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _isInstallerLogin = true),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: _isInstallerLogin
+                                  ? Colors.black87
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'Installer',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: _isInstallerLogin
+                                    ? Colors.white
+                                    : Colors.grey[500],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               const SizedBox(height: 32),
 
               // Login fields
-              if (!_isInstallerLogin) ...[
+              if (!_isInstallerLogin || kIsWeb) ...[
                 // Email field
                 TextField(
                   controller: _emailController,
@@ -126,7 +378,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: _purple, width: 2),
+                      borderSide: const BorderSide(
+                        color: Colors.black87,
+                        width: 2,
+                      ),
                     ),
                   ),
                 ),
@@ -143,11 +398,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: _purple, width: 2),
+                      borderSide: const BorderSide(
+                        color: Colors.black87,
+                        width: 2,
+                      ),
                     ),
                   ),
                 ),
-              ] else ...[
+              ] else if (!kIsWeb) ...[
                 // PIN field
                 TextField(
                   controller: _pinController,
@@ -167,7 +425,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: _purple, width: 2),
+                      borderSide: const BorderSide(
+                        color: Colors.black87,
+                        width: 2,
+                      ),
                     ),
                   ),
                 ),
@@ -178,23 +439,30 @@ class _LoginScreenState extends State<LoginScreen> {
               // Login button
               SizedBox(
                 width: double.infinity,
-                height: 56,
+                height: 52,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _login,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _purple,
+                    backgroundColor: Colors.black87,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(26),
                     ),
                   ),
                   child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
                       : const Text(
                           'Sign In',
                           style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                 ),
@@ -203,7 +471,14 @@ class _LoginScreenState extends State<LoginScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Don't have an account? "),
+                  Text(
+                    "Don't have an account? ",
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.grey[500],
+                    ),
+                  ),
                   GestureDetector(
                     onTap: () => Navigator.push(
                       context,
@@ -214,8 +489,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: const Text(
                       'Sign Up',
                       style: TextStyle(
-                        color: _purple,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -260,11 +536,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (response['success'] == true && mounted) {
           UserModel user = response['user'] as UserModel;
+          Widget dashboard;
+          if (kIsWeb) {
+            dashboard = AdminDashboard(user: user);
+          } else if (user.role == 'admin') {
+            dashboard = AdminDashboard(user: user);
+          } else {
+            dashboard = SupervisorDashboard(user: user);
+          }
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(
-              builder: (context) => ForemanDashboard(user: user),
-            ),
+            MaterialPageRoute(builder: (context) => dashboard),
           );
         } else {
           if (mounted) {

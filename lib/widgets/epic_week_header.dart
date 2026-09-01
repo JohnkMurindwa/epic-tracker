@@ -23,8 +23,6 @@ class _EpicWeekHeaderState extends State<EpicWeekHeader> {
   late DateTime _weekStart;
   late DateTime _selectedDay;
 
-  static const Color _purple = Color(0xFF7440D8);
-  static const Color _purpleLight = Color(0xFFEEEDFE);
   static const Color _darkText = Color(0xFF1A1A2E);
 
   @override
@@ -55,7 +53,10 @@ class _EpicWeekHeaderState extends State<EpicWeekHeader> {
     final isCurrentWeek = _weekStart.isAtSameMomentAs(_getWeekStart(today));
 
     return Container(
-      color: Colors.white,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey[200]!, width: 1)),
+      ),
       child: SafeArea(
         bottom: false,
         child: Padding(
@@ -63,29 +64,34 @@ class _EpicWeekHeaderState extends State<EpicWeekHeader> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ─── Row 1: Title + Avatar ─────────────────
+              // ─── Row 1: Avatar + Centered Title + Avatar ─────
               Row(
                 children: [
-                  const Text(
-                    'Epic Tracker',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: _darkText,
-                      letterSpacing: -0.5,
+                  // Invisible spacer same size as avatar for centering
+                  const SizedBox(width: 44),
+                  Expanded(
+                    child: Center(
+                      child: const Text(
+                        'Epic Installation',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: _darkText,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
                     ),
                   ),
-                  const Spacer(),
                   GestureDetector(
                     onTap: widget.onAvatarTap,
                     child: Container(
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: _purpleLight,
+                        color: const Color(0xFFF0F0F0),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: _purple.withValues(alpha: 0.3),
+                          color: Colors.black87.withValues(alpha: 0.3),
                           width: 2,
                         ),
                       ),
@@ -93,7 +99,7 @@ class _EpicWeekHeaderState extends State<EpicWeekHeader> {
                         child: Text(
                           _getInitials(widget.userName),
                           style: const TextStyle(
-                            color: _purple,
+                            color: Colors.black87,
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                           ),
@@ -129,7 +135,11 @@ class _EpicWeekHeaderState extends State<EpicWeekHeader> {
                     },
                     child: Padding(
                       padding: const EdgeInsets.all(4),
-                      child: Icon(Icons.chevron_left, color: _purple, size: 28),
+                      child: Icon(
+                        Icons.chevron_left,
+                        color: Colors.black87,
+                        size: 28,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -154,7 +164,9 @@ class _EpicWeekHeaderState extends State<EpicWeekHeader> {
                       padding: const EdgeInsets.all(4),
                       child: Icon(
                         Icons.chevron_right,
-                        color: isCurrentWeek ? Colors.grey[300] : _purple,
+                        color: isCurrentWeek
+                            ? Colors.grey[300]
+                            : Colors.black87,
                         size: 28,
                       ),
                     ),
@@ -190,7 +202,9 @@ class _EpicWeekHeaderState extends State<EpicWeekHeader> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: isSelected ? _purple : Colors.grey[500],
+                            color: isSelected
+                                ? Colors.black87
+                                : Colors.grey[500],
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -199,13 +213,15 @@ class _EpicWeekHeaderState extends State<EpicWeekHeader> {
                           height: 40,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: isSelected ? _purple : Colors.transparent,
+                            color: isSelected
+                                ? Colors.black87
+                                : Colors.transparent,
                             border: Border.all(
                               color: isSelected
-                                  ? _purple
+                                  ? Colors.black87
                                   : isToday
-                                  ? _purple
-                                  : _purple.withValues(alpha: 0.35),
+                                  ? Colors.black87
+                                  : Colors.black87.withValues(alpha: 0.35),
                               width: isSelected || isToday ? 2 : 1.5,
                             ),
                           ),
@@ -214,8 +230,10 @@ class _EpicWeekHeaderState extends State<EpicWeekHeader> {
                               '${day.day}',
                               style: TextStyle(
                                 fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: isSelected ? Colors.white : _purple,
+                                fontWeight: FontWeight.w600,
+                                color: isSelected
+                                    ? Colors.white
+                                    : Colors.black87,
                               ),
                             ),
                           ),

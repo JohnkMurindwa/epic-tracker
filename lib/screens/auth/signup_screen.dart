@@ -23,7 +23,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.deepOrange,
+        backgroundColor: Colors.black87,
         foregroundColor: Colors.white,
         title: const Text('Create Account'),
       ),
@@ -35,11 +35,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
             children: [
               const SizedBox(height: 16),
               const Text(
-                'Join Epic Tracker',
+                'Join Epic Installation',
                 style: TextStyle(
                   fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.deepOrange,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
                 ),
               ),
               const SizedBox(height: 8),
@@ -58,6 +58,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: Colors.black87,
+                      width: 2,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -71,6 +78,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   prefixIcon: const Icon(Icons.email_outlined),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: Colors.black87,
+                      width: 2,
+                    ),
                   ),
                 ),
               ),
@@ -86,6 +100,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: Colors.black87,
+                      width: 2,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -100,49 +121,31 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: Colors.black87,
+                      width: 2,
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               // Role Selection
               const Text(
-                'Select Your Role',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                'What is your role?',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  children: [
-                    _buildRoleTile(
-                      title: 'Installer',
-                      subtitle: 'Field worker on job site',
-                      icon: Icons.construction,
-                      role: 'installer',
-                    ),
-                    _buildRoleTile(
-                      title: 'Site Leader',
-                      subtitle: 'Supervises team on site',
-                      icon: Icons.supervisor_account,
-                      role: 'site_leader',
-                    ),
-                    _buildRoleTile(
-                      title: 'Foreman',
-                      subtitle: 'Manages multiple sites',
-                      icon: Icons.manage_accounts,
-                      role: 'foreman',
-                    ),
-                    _buildRoleTile(
-                      title: 'Admin',
-                      subtitle: 'Owner - full access',
-                      icon: Icons.admin_panel_settings,
-                      role: 'admin',
-                    ),
-                  ],
-                ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _buildRoleChip('Installer', 'installer'),
+                  _buildRoleChip('Junior Installer', 'junior_installer'),
+                  _buildRoleChip('Helper', 'helper'),
+                ],
               ),
               const SizedBox(height: 32),
 
@@ -153,19 +156,26 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _signUp,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepOrange,
+                    backgroundColor: Colors.black87,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(28),
                     ),
                   ),
                   child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
                       : const Text(
                           'Create Account',
                           style: TextStyle(
                             fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                 ),
@@ -176,14 +186,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('Already have an account? '),
+                  const Text("Already have an account? "),
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: const Text(
                       'Sign In',
                       style: TextStyle(
-                        color: Colors.deepOrange,
-                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -191,52 +201,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRoleTile({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required String role,
-  }) {
-    bool isSelected = _selectedRole == role;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedRole = role),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.deepOrange : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: isSelected ? Colors.white : Colors.grey),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: isSelected ? Colors.white : Colors.black,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isSelected ? Colors.white70 : Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-            const Spacer(),
-            if (isSelected) const Icon(Icons.check_circle, color: Colors.white),
-          ],
         ),
       ),
     );
@@ -270,58 +234,48 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (response['success'] == true && mounted) {
         UserModel user = response['user'];
 
-        if (_selectedRole == 'installer' || _selectedRole == 'site_leader') {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => AlertDialog(
-              title: const Text('Account Created! 🎉'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Your 5 digit PIN is:'),
-                  const SizedBox(height: 16),
-                  Text(
-                    user.pin,
-                    style: const TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.deepOrange,
-                      letterSpacing: 8,
-                    ),
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Account Created!'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Your 5 digit PIN is:'),
+                const SizedBox(height: 16),
+                Text(
+                  user.pin,
+                  style: const TextStyle(
+                    fontSize: 48,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                    letterSpacing: 8,
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Save this PIN! You will use it to login every day.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-              actions: [
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    Navigator.pop(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepOrange,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('Got it! Go to Login'),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Save this PIN! You will use it to login every day.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey),
                 ),
               ],
             ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Account created! Please sign in.'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          Navigator.pop(context);
-        }
+            actions: [
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black87,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Got it! Go to Login'),
+              ),
+            ],
+          ),
+        );
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -335,6 +289,31 @@ class _SignUpScreenState extends State<SignUpScreen> {
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  Widget _buildRoleChip(String label, String role) {
+    final isSelected = _selectedRole == role;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedRole = role),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.black87 : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? Colors.black87 : Colors.grey[300]!,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: isSelected ? Colors.white : Colors.black87,
+          ),
+        ),
+      ),
+    );
   }
 
   @override

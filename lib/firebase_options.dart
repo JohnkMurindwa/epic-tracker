@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -70,5 +67,15 @@ class DefaultFirebaseOptions {
     projectId: 'epic-tracker-5b28b',
     storageBucket: 'epic-tracker-5b28b.firebasestorage.app',
     iosBundleId: 'com.example.epicTracker',
+  );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyAp2m6q1FnIHEjWt8E3lVRbsVIah5bdLOE',
+    appId: '1:931856781528:web:a1acb8da530d866a8c07ad',
+    messagingSenderId: '931856781528',
+    projectId: 'epic-tracker-5b28b',
+    authDomain: 'epic-tracker-5b28b.firebaseapp.com',
+    storageBucket: 'epic-tracker-5b28b.firebasestorage.app',
+    measurementId: 'G-4KF7SXNL6D',
   );
 }
