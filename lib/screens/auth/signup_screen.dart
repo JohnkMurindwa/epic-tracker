@@ -145,6 +145,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   _buildRoleChip('Installer', 'installer'),
                   _buildRoleChip('Junior Installer', 'junior_installer'),
                   _buildRoleChip('Helper', 'helper'),
+                  _buildRoleChip('Foreman', 'foreman'),
                 ],
               ),
               const SizedBox(height: 32),

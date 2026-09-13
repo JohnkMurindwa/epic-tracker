@@ -562,12 +562,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
         double spent = totalConsumed * _crewDayRate;
         double budget = totalEstimated * _crewDayRate;
         double remaining = budget - spent;
-        int inProgress = areas.where((a) {
-          final d = a.data() as Map<String, dynamic>;
-          final consumed = (d['consumedCrewDays'] ?? 0).toDouble();
-          final total = (d['totalCrewDays'] ?? 0).toDouble();
-          return consumed < total;
-        }).length;
+        // int inProgress = areas.where((a) {
+        //   final d = a.data() as Map<String, dynamic>;
+        //   final consumed = (d['consumedCrewDays'] ?? 0).toDouble();
+        //   final total = (d['totalCrewDays'] ?? 0).toDouble();
+        //   return consumed < total;
+        // }).length;
 
         // Group areas by level
         final Map<String, List<QueryDocumentSnapshot>> levelGroups = {};
@@ -1444,7 +1444,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ],
             ),
             Text(
-              '${_selectedSiteName ?? ''}',
+              _selectedSiteName ?? '',
               style: TextStyle(fontSize: 13, color: Colors.grey[500]),
             ),
             const SizedBox(height: 16),
@@ -1682,7 +1682,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             final dateLabel = dayGroup.key;
             final workers = dayGroup.value;
             double totalHours = 0;
-            double? crewDaysBefore;
+            // double? crewDaysBefore;
             double? crewDaysAfter;
 
             for (final w in workers) {

@@ -32,7 +32,8 @@ class AuthService {
       String pin = '';
       if (role == 'installer' ||
           role == 'junior_installer' ||
-          role == 'helper') {
+          role == 'helper' ||
+          role == 'foreman') {
         pin = _generatePin();
       }
 
@@ -124,7 +125,10 @@ class AuthService {
       QuerySnapshot result = await _db
           .collection('users')
           .where('pin', isEqualTo: pin)
-          .where('role', whereIn: ['installer', 'junior_installer', 'helper'])
+          .where(
+            'role',
+            whereIn: ['installer', 'junior_installer', 'helper', 'foreman'],
+          )
           .get();
 
       if (result.docs.isEmpty) return null;

@@ -89,6 +89,46 @@ class FirestoreService {
     await _db.collection('areas').doc(areaId).delete();
   }
 
+  /// Assign a worker to a job site's pool.
+  Future<void> assignWorkerToProject({
+    required String projectId,
+    required String workerId,
+  }) async {
+    await _db.collection('projects').doc(projectId).update({
+      'assignedWorkers': FieldValue.arrayUnion([workerId]),
+    });
+  }
+
+  /// Remove a worker from a job site's pool.
+  Future<void> removeWorkerFromProject({
+    required String projectId,
+    required String workerId,
+  }) async {
+    await _db.collection('projects').doc(projectId).update({
+      'assignedWorkers': FieldValue.arrayRemove([workerId]),
+    });
+  }
+
+  /// Assign a foreman to a project.
+  Future<void> assignForemanToProject({
+    required String projectId,
+    required String foremanId,
+  }) async {
+    await _db.collection('projects').doc(projectId).update({
+      'assignedForemen': FieldValue.arrayUnion([foremanId]),
+    });
+  }
+
+  /// Remove a foreman from a project.
+  Future<void> removeForemanFromProject({
+    required String projectId,
+    required String foremanId,
+  }) async {
+    await _db.collection('projects').doc(projectId).update({
+      'assignedForemen': FieldValue.arrayRemove([foremanId]),
+    });
+  }
+
   Future<void> assignPeopleToArea({
     required String areaId,
     required List<String> peopleIds,

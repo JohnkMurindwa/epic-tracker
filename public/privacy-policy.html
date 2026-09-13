@@ -1,39 +1,449 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Privacy Policy — Epic Installation</title>
-<style>
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 720px; margin: 0 auto; padding: 40px 24px; color: #333; line-height: 1.7; }
-h1 { font-size: 28px; }
-h2 { font-size: 18px; margin-top: 32px; }
-.date { color: #888; font-size: 14px; margin-bottom: 32px; }
-</style>
-</head>
-<body>
-<h1>Privacy Policy</h1>
-<p class="date">Last updated: August 11, 2026</p>
-<p><strong>Epic Ceramic & Stone</strong> ("we", "our", or "us") operates the Epic Installation mobile application (the "App"). This Privacy Policy explains how we collect, use, and protect your information.</p>
-<h2>Information We Collect</h2>
-<p><strong>Account Information:</strong> Name, email address, phone number, and role. Installers are assigned a 5-digit PIN for login.</p>
-<p><strong>Location Data:</strong> GPS location is captured only at clock-in to verify job site presence. We do not continuously track your location.</p>
-<p><strong>Work Data:</strong> Clock-in/out times, work descriptions, area assignments, and crew day records.</p>
-<h2>How We Use Your Information</h2>
-<p>We use your information to verify job site presence, track work hours and crew day consumption, provide workforce reports to supervisors and administrators, and improve the App.</p>
-<h2>Data Storage</h2>
-<p>Your data is stored securely using Google Firebase infrastructure. Data is encrypted in transit and at rest.</p>
-<h2>Data Sharing</h2>
-<p>We do not sell, rent, or share your personal information with third parties. Your work data is accessible to your employer's supervisors and administrators for workforce management.</p>
-<h2>Data Retention</h2>
-<p>Account data and work records are retained for the duration of employment and a reasonable period thereafter. You may request deletion by contacting us.</p>
-<h2>Your Rights</h2>
-<p>You may access, correct, or request deletion of your personal data. Withdrawing location consent may prevent clock-in functionality.</p>
-<h2>Children's Privacy</h2>
-<p>The App is not intended for individuals under 18. We do not knowingly collect data from children.</p>
-<h2>Changes</h2>
-<p>We may update this policy and will notify you by posting changes within the App.</p>
-<h2>Contact Us</h2>
-<p><strong>Epic Ceramic & Stone</strong><br>California, United States<br>Email: info@epicceramicandstone.com</p>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Privacy Policy — Epic Installation</title>
+    <style>
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 40px 24px;
+        color: #333;
+        line-height: 1.7;
+      }
+      h1 {
+        font-size: 28px;
+        margin-bottom: 4px;
+      }
+      h2 {
+        font-size: 18px;
+        margin-top: 32px;
+        color: #111;
+      }
+      h3 {
+        font-size: 15px;
+        margin-top: 20px;
+        color: #333;
+      }
+      .date {
+        color: #888;
+        font-size: 14px;
+        margin-bottom: 32px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 0;
+        font-size: 14px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 10px 12px;
+        border-bottom: 1px solid #eee;
+      }
+      th {
+        background: #f9f9f9;
+        font-weight: 600;
+        color: #555;
+      }
+      ul {
+        padding-left: 20px;
+      }
+      li {
+        margin-bottom: 6px;
+      }
+      .highlight {
+        background: #f5f5f5;
+        padding: 16px;
+        border-radius: 8px;
+        margin: 16px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Privacy Policy</h1>
+    <p class="date">Last updated: September 11, 2026</p>
+
+    <p>
+      <strong>Epic Ceramic & Stone</strong> ("we", "our", "us", or the
+      "Company") operates the Epic Installation mobile application for iOS and
+      Android (the "App"). This Privacy Policy explains how we collect, use,
+      store, share, and protect your personal information when you use our App.
+    </p>
+
+    <p>
+      By creating an account or using the App, you agree to the collection and
+      use of information as described in this policy.
+    </p>
+
+    <h2>1. Information We Collect</h2>
+
+    <h3>a. Account Information</h3>
+    <p>When you create an account, we collect:</p>
+    <ul>
+      <li>
+        <strong>Full name</strong> — to identify you in the workforce system
+      </li>
+      <li>
+        <strong>Email address</strong> — for account authentication
+        (Supervisors, Foremen, and Admin)
+      </li>
+      <li><strong>Phone number</strong> — for contact purposes</li>
+      <li>
+        <strong>Role</strong> — your position (Installer, Junior Installer,
+        Helper, Foreman, Supervisor, or Admin)
+      </li>
+      <li>
+        <strong>5-digit PIN</strong> — auto-generated for field workers to log
+        in quickly on job sites
+      </li>
+    </ul>
+
+    <h3>b. Location Data</h3>
+    <p>
+      When you clock in to a job site, the App captures your device's
+      <strong>GPS coordinates</strong> to verify that you are physically present
+      at the assigned work location. Location data is:
+    </p>
+    <ul>
+      <li>Captured <strong>only at the moment of clock-in</strong></li>
+      <li><strong>Not continuously tracked</strong> throughout the day</li>
+      <li>Stored as a single geographic coordinate (latitude and longitude)</li>
+      <li>Used solely for job site presence verification</li>
+    </ul>
+    <p>
+      You may deny location access, but this will prevent you from clocking in
+      to a job site.
+    </p>
+
+    <h3>c. Work Activity Data</h3>
+    <p>During your workday, the App records:</p>
+    <ul>
+      <li>Clock-in and clock-out times</li>
+      <li>Lunch break start and end times</li>
+      <li>Work descriptions (selected from a predefined list)</li>
+      <li>Area and level assignments at job sites</li>
+      <li>Crew day consumption and progress records</li>
+      <li>Hours worked per area, per day</li>
+    </ul>
+
+    <h3>d. Device Information</h3>
+    <p>
+      We may automatically collect basic device information such as device type,
+      operating system version, and app version for troubleshooting and
+      compatibility purposes.
+    </p>
+
+    <h2>2. How We Use Your Information</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Name, email, phone</td>
+          <td>
+            Account creation, authentication, and workforce identification
+          </td>
+        </tr>
+        <tr>
+          <td>Role</td>
+          <td>
+            Routing to the appropriate dashboard (Installer, Supervisor,
+            Foreman, or Admin)
+          </td>
+        </tr>
+        <tr>
+          <td>Location (GPS)</td>
+          <td>
+            Verifying physical presence at assigned job sites during clock-in
+          </td>
+        </tr>
+        <tr>
+          <td>Work activity data</td>
+          <td>
+            Tracking crew day consumption, generating workforce reports, and
+            managing project timelines
+          </td>
+        </tr>
+        <tr>
+          <td>Device information</td>
+          <td>App compatibility, debugging, and performance improvements</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>3. Data Storage and Security</h2>
+    <p>
+      Your data is stored using <strong>Google Firebase</strong> cloud
+      infrastructure, which provides:
+    </p>
+    <ul>
+      <li>
+        <strong>Encryption in transit</strong> — all data transmitted between
+        your device and our servers uses TLS/SSL encryption
+      </li>
+      <li>
+        <strong>Encryption at rest</strong> — stored data is encrypted on
+        Google's servers
+      </li>
+      <li>
+        <strong>Authentication</strong> — access to data requires valid
+        credentials (email/password or PIN)
+      </li>
+      <li>
+        <strong>Role-based access control</strong> — Installers see only their
+        own data; Supervisors and Foremen see data for their assigned job sites;
+        Admins see company-wide data
+      </li>
+    </ul>
+
+    <h2>4. Data Sharing and Role-Based Access</h2>
+    <p>
+      We <strong>do not sell, rent, trade, or share</strong> your personal
+      information with third parties for marketing or advertising purposes.
+    </p>
+    <p>
+      Within the App, different roles have different levels of access to your
+      data:
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Role</th>
+          <th>What they can see</th>
+          <th>What they can do</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Installer / Junior Installer / Helper</strong></td>
+          <td>Their own clock-in/out history, crew days, and assigned area</td>
+          <td>Clock in/out, take lunch, view their own work history</td>
+        </tr>
+        <tr>
+          <td><strong>Foreman</strong></td>
+          <td>
+            Worker names, roles, clock times, and work descriptions for workers
+            at their assigned job site(s) only
+          </td>
+          <td>
+            Assign workers to areas within their job site, view crew activity
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Supervisor</strong></td>
+          <td>
+            All worker data across all job sites — names, roles, clock times,
+            descriptions, area assignments
+          </td>
+          <td>
+            Assign workers and foremen to job sites, create areas, manage crew
+            assignments across all sites
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Admin</strong> (web dashboard only)</td>
+          <td>
+            All data plus financial information — labor costs, budgets, crew day
+            consumption, project spending
+          </td>
+          <td>
+            Create job sites, import project data from spreadsheets, track
+            costs, manage the crew day rate, view company-wide reports. Accesses
+            data through a web browser, not the mobile app.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      Foremen can only see workers that the Supervisor has assigned to their
+      specific job site — they cannot see workers at other sites or company-wide
+      data.
+    </p>
+
+    <h3>Third-Party Services</h3>
+    <p>The App uses the following third-party services to operate:</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Service</th>
+          <th>Provider</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Firebase Authentication</td>
+          <td>Google LLC</td>
+          <td>User sign-in and PIN verification</td>
+        </tr>
+        <tr>
+          <td>Cloud Firestore</td>
+          <td>Google LLC</td>
+          <td>Storing user accounts, work logs, and project data</td>
+        </tr>
+        <tr>
+          <td>Firebase Storage</td>
+          <td>Google LLC</td>
+          <td>File storage (reserved for future use)</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>
+      These services are governed by
+      <a href="https://policies.google.com/privacy" target="_blank"
+        >Google's Privacy Policy</a
+      >.
+    </p>
+
+    <h2>5. Data Retention</h2>
+    <ul>
+      <li>
+        <strong>Active accounts:</strong> Your data is retained for the duration
+        of your employment and active use of the App.
+      </li>
+      <li>
+        <strong>Inactive accounts:</strong> Data may be retained for a
+        reasonable period after your last activity for record-keeping and legal
+        compliance.
+      </li>
+      <li>
+        <strong>Deletion:</strong> You may request deletion of your account and
+        associated data at any time (see Section 7).
+      </li>
+    </ul>
+
+    <h2>6. Permissions Used</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Permission</th>
+          <th>Platform</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Location (When In Use)</td>
+          <td>iOS &amp; Android</td>
+          <td>GPS capture at clock-in to verify job site presence</td>
+        </tr>
+        <tr>
+          <td>Internet Access</td>
+          <td>iOS &amp; Android</td>
+          <td>Syncing data with Firebase servers</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>
+      We do not request access to your camera, photo library, contacts,
+      microphone, or any other device features.
+    </p>
+
+    <h2>7. Your Rights and Data Deletion</h2>
+    <p>You have the right to:</p>
+    <ul>
+      <li>
+        <strong>Access</strong> — request a copy of the personal data we hold
+        about you
+      </li>
+      <li>
+        <strong>Correct</strong> — request correction of inaccurate or
+        incomplete data
+      </li>
+      <li>
+        <strong>Delete</strong> — request deletion of your account and all
+        associated personal data
+      </li>
+      <li>
+        <strong>Withdraw consent</strong> — revoke location permission at any
+        time through your device settings (note: this will prevent clock-in
+        functionality)
+      </li>
+    </ul>
+
+    <div class="highlight">
+      <strong>To request data deletion or access:</strong><br />
+      Send an email to <strong>info@epicceramicandstone.com</strong> with the
+      subject line "Data Deletion Request" or "Data Access Request." Include
+      your full name and the email or phone number associated with your account.
+      We will process your request within 30 days.
+    </div>
+
+    <h2>8. California Privacy Rights (CCPA)</h2>
+    <p>
+      If you are a California resident, you have additional rights under the
+      California Consumer Privacy Act (CCPA):
+    </p>
+    <ul>
+      <li>
+        The right to know what personal information we collect and how it is
+        used
+      </li>
+      <li>The right to request deletion of your personal information</li>
+      <li>
+        The right to opt out of the sale of personal information —
+        <strong>we do not sell your personal information</strong>
+      </li>
+      <li>
+        The right to non-discrimination for exercising your privacy rights
+      </li>
+    </ul>
+
+    <h2>9. Children's Privacy</h2>
+    <p>
+      The App is a workplace tool and is
+      <strong>not intended for use by individuals under the age of 18</strong>.
+      We do not knowingly collect personal information from children. If we
+      become aware that a user is under 18, we will promptly delete their
+      account and associated data.
+    </p>
+
+    <h2>10. International Data Transfers</h2>
+    <p>
+      Your data is processed and stored in the United States through Google
+      Firebase infrastructure. By using the App, you consent to the transfer of
+      your data to the United States.
+    </p>
+
+    <h2>11. Changes to This Policy</h2>
+    <p>
+      We may update this Privacy Policy from time to time to reflect changes in
+      our practices, technology, or legal requirements. When we make changes:
+    </p>
+    <ul>
+      <li>The "Last updated" date at the top of this page will be revised</li>
+      <li>
+        Significant changes will be communicated through the App or by email
+      </li>
+      <li>
+        Continued use of the App after changes constitutes acceptance of the
+        updated policy
+      </li>
+    </ul>
+
+    <h2>12. Contact Us</h2>
+    <p>
+      If you have questions, concerns, or requests regarding this Privacy Policy
+      or your personal data, please contact us:
+    </p>
+    <p>
+      <strong>Epic Ceramic & Stone</strong><br />
+      California, United States<br />
+      Email:
+      <a href="mailto:info@epicceramicandstone.com"
+        >info@epicceramicandstone.com</a
+      >
+    </p>
+  </body>
 </html>

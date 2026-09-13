@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
@@ -19,7 +18,6 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
     with SingleTickerProviderStateMixin {
   final AuthService _authService = AuthService();
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  String? _expandedAreaId; // Which area card is expanded
   final FirestoreService _firestoreService = FirestoreService();
   late TabController _tabController;
 
@@ -45,7 +43,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
         children: [
           EpicWeekHeader(
             userName: widget.user.name,
-            userRole: 'Supervisor',
+            userRole: widget.user.role == 'foreman' ? 'Foreman' : 'Supervisor',
             onDaySelected: (day) {
               setState(() => _selectedDay = day);
             },
@@ -282,8 +280,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                 entry['projectName'] as String? ?? 'Unknown Site';
             final areaName = entry['areaName'] as String? ?? 'Unknown Area';
 
-            // Look up the level from areas collection
-            final areaId = entry['areaId'] as String?;
+            // Look up the level from areas collectio
             String levelName = 'Unassigned';
             // We'll resolve level from the entry or fallback
             if (entry['levelName'] != null) {
@@ -646,60 +643,6 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
     );
   }
 
-  void _showFullPhoto(String url) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: const BoxDecoration(
-                color: Colors.black87,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-              ),
-              child: Row(
-                children: [
-                  const Text(
-                    'Progress Photo',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(dialogContext),
-                    child: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 22,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(12),
-              ),
-              child: Image.network(
-                url,
-                width: double.infinity,
-                fit: BoxFit.contain,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   // ═══════════════════════════════════════════════════════════
   // TAB 2: JOB SITES — projects + areas + people assignment
   // ═══════════════════════════════════════════════════════════
@@ -724,18 +667,31 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
           _selectedDay.day,
         ).add(const Duration(days: 1));
 
-        final projects = allProjects.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          final createdAt = (data['created_at'] as Timestamp?)?.toDate();
-          // Sites without a timestamp (pending server write) show only on today
-          if (createdAt == null) {
-            final now = DateTime.now();
-            return _selectedDay.year == now.year &&
-                _selectedDay.month == now.month &&
-                _selectedDay.day == now.day;
-          }
-          return createdAt.isBefore(endOfSelectedDay);
-        }).toList();
+        final projects = allProjects
+            .where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final createdAt = (data['created_at'] as Timestamp?)?.toDate();
+              // Sites without a timestamp (pending server write) show only on today
+              if (createdAt == null) {
+                final now = DateTime.now();
+                return _selectedDay.year == now.year &&
+                    _selectedDay.month == now.month &&
+                    _selectedDay.day == now.day;
+              }
+              return createdAt.isBefore(endOfSelectedDay);
+            })
+            .where((doc) {
+              // Foremen only see their assigned sites
+              if (widget.user.role == 'foreman') {
+                final data = doc.data() as Map<String, dynamic>;
+                final assignedForemen = List<String>.from(
+                  data['assignedForemen'] ?? [],
+                );
+                return assignedForemen.contains(widget.user.id);
+              }
+              return true; // Supervisors see all
+            })
+            .toList();
 
         // Split into active and completed
         final activeProjects = projects.where((doc) {
@@ -931,17 +887,44 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
             ),
 
             const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: () => _showAddAreaDialog(projectId, name),
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('Add Area', style: TextStyle(fontSize: 13)),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: Colors.black87),
-                foregroundColor: Colors.black87,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
+            Wrap(
+              children: [
+                if (widget.user.role == 'supervisor') ...[
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: () =>
+                        _showAssignWorkersToSiteDialog(projectId, name),
+                    icon: const Icon(Icons.group_add, size: 16),
+                    label: const Text(
+                      'Assign Workers',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.black87),
+                      foregroundColor: Colors.black87,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => _showAssignForemanDialog(projectId, name),
+                    icon: const Icon(Icons.person_pin, size: 16),
+                    label: const Text(
+                      'Assign Foreman',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.black87),
+                      foregroundColor: Colors.black87,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ],
         ),
@@ -999,126 +982,106 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
               final people = List<String>.from(
                 areaData['assignedPeople'] ?? [],
               );
-              final isExpanded = _expandedAreaId == areaDoc.id;
               final isDone = progress >= 1.0;
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 6),
                 decoration: BoxDecoration(
-                  color: isExpanded ? Colors.grey[50] : Colors.white,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: isExpanded
-                        ? Colors.black87.withValues(alpha: 0.15)
-                        : Colors.grey[200]!,
-                  ),
+                  border: Border.all(color: Colors.grey[200]!),
                 ),
-                child: Column(
-                  children: [
-                    // ─── Clean area row ────
-                    InkWell(
-                      borderRadius: BorderRadius.circular(10),
-                      onTap: () {
-                        setState(() {
-                          _expandedAreaId = isExpanded ? null : areaDoc.id;
-                        });
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () {
+                    _showAreaDetailSheet(
+                      areaDoc.id,
+                      areaData,
+                      projectId,
+                      projectName,
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        // Status icon
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: isDone
+                                ? Colors.green.withValues(alpha: 0.1)
+                                : Colors.black87.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            isDone ? Icons.check : Icons.construction,
+                            size: 16,
+                            color: isDone ? Colors.green : Colors.black54,
+                          ),
                         ),
-                        child: Row(
-                          children: [
-                            // Status icon
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: isDone
-                                    ? Colors.green.withValues(alpha: 0.1)
-                                    : Colors.black87.withValues(alpha: 0.05),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                isDone ? Icons.check : Icons.construction,
-                                size: 16,
-                                color: isDone ? Colors.green : Colors.black54,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            // Area name + people
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    areaName,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    people.isEmpty
-                                        ? 'No one assigned'
-                                        : '${people.length} ${people.length == 1 ? 'person' : 'people'} assigned',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.grey[500],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            // Crew days pill
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isDone
-                                    ? Colors.green.withValues(alpha: 0.1)
-                                    : Colors.grey[100],
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                isDone
-                                    ? 'Done'
-                                    : '${(est - consumed).toStringAsFixed(1)} days',
-                                style: TextStyle(
-                                  fontSize: 12,
+                        const SizedBox(width: 12),
+                        // Area name + people
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                areaName,
+                                style: const TextStyle(
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: isDone ? Colors.green : Colors.black87,
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Icon(
-                              isExpanded
-                                  ? Icons.keyboard_arrow_up
-                                  : Icons.keyboard_arrow_down,
-                              size: 20,
-                              color: Colors.grey[400],
-                            ),
-                          ],
+                              const SizedBox(height: 2),
+                              Text(
+                                people.isEmpty
+                                    ? 'No one assigned'
+                                    : '${people.length} ${people.length == 1 ? 'person' : 'people'} assigned',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
+                        // Crew days pill
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isDone
+                                ? Colors.green.withValues(alpha: 0.1)
+                                : Colors.grey[100],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            isDone
+                                ? 'Done'
+                                : '${(est - consumed).toStringAsFixed(1)} days',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDone ? Colors.green : Colors.black87,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          Icons.chevron_right,
+                          size: 18,
+                          color: Colors.grey[400],
+                        ),
+                      ],
                     ),
-
-                    // ─── Expanded detail card ────
-                    if (isExpanded) ...[
-                      Divider(height: 1, color: Colors.grey[200]),
-                      _buildAreaCard(
-                        areaDoc.id,
-                        areaData,
-                        projectId,
-                        projectName,
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
               );
             }).toList(),
@@ -1126,6 +1089,74 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
         ),
       );
     }).toList();
+  }
+
+  void _showAreaDetailSheet(
+    String areaId,
+    Map<String, dynamic> data,
+    String projectId,
+    String projectName,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.7,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 10, bottom: 6),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        data['name'] ?? '',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(sheetContext),
+                      icon: const Icon(Icons.close, size: 20),
+                    ),
+                  ],
+                ),
+              ),
+              Divider(height: 1, color: Colors.grey[200]),
+              // Area card content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: _buildAreaCard(areaId, data, projectId, projectName),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildAreaCard(
@@ -1248,8 +1279,12 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
           Row(
             children: [
               GestureDetector(
-                onTap: () =>
-                    _showAssignPeopleDialog(areaId, areaName, assignedPeople),
+                onTap: () => _showAssignPeopleDialog(
+                  areaId,
+                  areaName,
+                  assignedPeople,
+                  projectId,
+                ),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
@@ -1305,85 +1340,231 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
   // DIALOGS
   // ═══════════════════════════════════════════════════════════
 
-  void _showAddAreaDialog(String projectId, String projectName) {
-    final levelCtrl = TextEditingController();
-    final nameCtrl = TextEditingController();
-    final crewDaysCtrl = TextEditingController();
-
+  void _showAssignWorkersToSiteDialog(String projectId, String projectName) {
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Add Area', style: TextStyle(color: Colors.black87)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: levelCtrl,
-                decoration: InputDecoration(
-                  labelText: 'Level',
-                  hintText: 'e.g. Ground Floor, First Floor, Basement',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: nameCtrl,
-                decoration: InputDecoration(
-                  labelText: 'Area Name',
-                  hintText: 'e.g. Master Bathroom',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: crewDaysCtrl,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Estimated Crew Days',
-                  hintText: 'e.g. 6',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameCtrl.text.isEmpty ||
-                  crewDaysCtrl.text.isEmpty ||
-                  levelCtrl.text.isEmpty) {
-                return;
-              }
+      builder: (dialogContext) => StreamBuilder<QuerySnapshot>(
+        stream: _db
+            .collection('users')
+            .where('role', whereIn: ['installer', 'junior_installer', 'helper'])
+            .snapshots(),
+        builder: (context, snapshot) {
+          final workers = snapshot.data?.docs ?? [];
 
-              final navigator = Navigator.of(dialogContext);
-              await _firestoreService.addArea(
-                projectId: projectId,
-                projectName: projectName,
-                levelName: levelCtrl.text.trim(),
-                areaName: nameCtrl.text.trim(),
-                totalCrewDays: double.tryParse(crewDaysCtrl.text) ?? 0,
+          return StreamBuilder<DocumentSnapshot>(
+            stream: _db.collection('projects').doc(projectId).snapshots(),
+            builder: (context, projectSnap) {
+              final projectData =
+                  projectSnap.data?.data() as Map<String, dynamic>? ?? {};
+              final assignedWorkers = List<String>.from(
+                projectData['assignedWorkers'] ?? [],
               );
-              navigator.pop();
+
+              return AlertDialog(
+                title: Text('Assign Workers to $projectName'),
+                content: SizedBox(
+                  width: 350,
+                  height: 400,
+                  child: workers.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'No workers registered yet',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        )
+                      : ListView(
+                          children: workers.map((doc) {
+                            final data = doc.data() as Map<String, dynamic>;
+                            final name = data['name'] ?? 'Unknown';
+                            final role = (data['role'] ?? '').replaceAll(
+                              '_',
+                              ' ',
+                            );
+                            final isAssigned = assignedWorkers.contains(doc.id);
+
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: isAssigned
+                                    ? Colors.black87
+                                    : Colors.grey[200],
+                                radius: 16,
+                                child: Text(
+                                  name.isNotEmpty ? name[0].toUpperCase() : '?',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: isAssigned
+                                        ? Colors.white
+                                        : Colors.grey[600],
+                                  ),
+                                ),
+                              ),
+                              title: Text(
+                                name,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              subtitle: Text(
+                                role,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                              trailing: Icon(
+                                isAssigned
+                                    ? Icons.check_circle
+                                    : Icons.circle_outlined,
+                                color: isAssigned
+                                    ? Colors.black87
+                                    : Colors.grey[400],
+                                size: 22,
+                              ),
+                              onTap: () {
+                                if (isAssigned) {
+                                  _firestoreService.removeWorkerFromProject(
+                                    projectId: projectId,
+                                    workerId: doc.id,
+                                  );
+                                } else {
+                                  _firestoreService.assignWorkerToProject(
+                                    projectId: projectId,
+                                    workerId: doc.id,
+                                  );
+                                }
+                              },
+                            );
+                          }).toList(),
+                        ),
+                ),
+                actions: [
+                  Text(
+                    '${assignedWorkers.length} assigned',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black87,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Done'),
+                  ),
+                ],
+              );
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black87,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Add'),
-          ),
-        ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showAssignForemanDialog(String projectId, String projectName) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StreamBuilder<QuerySnapshot>(
+        stream: _db
+            .collection('users')
+            .where('role', isEqualTo: 'foreman')
+            .snapshots(),
+        builder: (context, snapshot) {
+          final foremen = snapshot.data?.docs ?? [];
+
+          return StreamBuilder<DocumentSnapshot>(
+            stream: _db.collection('projects').doc(projectId).snapshots(),
+            builder: (context, projectSnap) {
+              final projectData =
+                  projectSnap.data?.data() as Map<String, dynamic>? ?? {};
+              final assignedForemen = List<String>.from(
+                projectData['assignedForemen'] ?? [],
+              );
+
+              return AlertDialog(
+                title: Text('Assign Foreman to $projectName'),
+                content: SizedBox(
+                  width: 300,
+                  child: foremen.isEmpty
+                      ? const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text(
+                            'No foremen registered yet',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        )
+                      : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: foremen.map((doc) {
+                            final data = doc.data() as Map<String, dynamic>;
+                            final name = data['name'] ?? 'Unknown';
+                            final isAssigned = assignedForemen.contains(doc.id);
+
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: isAssigned
+                                    ? Colors.black87
+                                    : Colors.grey[200],
+                                radius: 16,
+                                child: Text(
+                                  name.isNotEmpty ? name[0].toUpperCase() : '?',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: isAssigned
+                                        ? Colors.white
+                                        : Colors.grey[600],
+                                  ),
+                                ),
+                              ),
+                              title: Text(
+                                name,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              trailing: Icon(
+                                isAssigned
+                                    ? Icons.check_circle
+                                    : Icons.circle_outlined,
+                                color: isAssigned
+                                    ? Colors.black87
+                                    : Colors.grey[400],
+                                size: 22,
+                              ),
+                              onTap: () {
+                                if (isAssigned) {
+                                  _firestoreService.removeForemanFromProject(
+                                    projectId: projectId,
+                                    foremanId: doc.id,
+                                  );
+                                } else {
+                                  _firestoreService.assignForemanToProject(
+                                    projectId: projectId,
+                                    foremanId: doc.id,
+                                  );
+                                }
+                              },
+                            );
+                          }).toList(),
+                        ),
+                ),
+                actions: [
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black87,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Done'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
       ),
     );
   }
@@ -1493,123 +1674,155 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
     String areaId,
     String areaName,
     List<String> currentPeople,
+    String projectId,
   ) {
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(
-          'Assign to $areaName',
-          style: const TextStyle(color: Colors.black87, fontSize: 16),
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: StreamBuilder<QuerySnapshot>(
-            stream: _db
-                .collection('users')
-                .where(
-                  'role',
-                  whereIn: ['installer', 'junior_installer', 'helper'],
-                )
-                .snapshots(),
-            builder: (context, snapshot) {
-              final users = snapshot.data?.docs ?? [];
+      builder: (dialogContext) {
+        return StreamBuilder<DocumentSnapshot>(
+          stream: _db.collection('projects').doc(projectId).snapshots(),
+          builder: (context, projectSnap) {
+            final projectData =
+                projectSnap.data?.data() as Map<String, dynamic>? ?? {};
+            final siteWorkers = List<String>.from(
+              projectData['assignedWorkers'] ?? [],
+            );
 
-              if (users.isEmpty) {
-                return const Text('No installers found');
-              }
+            return AlertDialog(
+              title: Text(
+                'Assign to $areaName',
+                style: const TextStyle(color: Colors.black87, fontSize: 16),
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: _db
+                      .collection('users')
+                      .where(
+                        'role',
+                        whereIn: ['installer', 'junior_installer', 'helper'],
+                      )
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    var users = snapshot.data?.docs ?? [];
 
-              return StatefulBuilder(
-                builder: (context, setDialogState) {
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: users.length,
-                    itemBuilder: (context, index) {
-                      final userData =
-                          users[index].data() as Map<String, dynamic>;
-                      final userId = users[index].id;
-                      final userName = userData['name'] ?? 'Unknown';
-                      final userRole = userData['role'] ?? '';
-                      final isAssigned = currentPeople.contains(userId);
+                    // Foremen only see workers assigned to this site
+                    if (widget.user.role == 'foreman' &&
+                        siteWorkers.isNotEmpty) {
+                      users = users
+                          .where((doc) => siteWorkers.contains(doc.id))
+                          .toList();
+                    }
 
-                      return ListTile(
-                        dense: true,
-                        leading: CircleAvatar(
-                          radius: 16,
-                          backgroundColor: isAssigned
-                              ? Colors.black87
-                              : Colors.grey[200],
-                          child: Text(
-                            userName.isNotEmpty
-                                ? userName[0].toUpperCase()
-                                : '?',
-                            style: TextStyle(
-                              color: isAssigned
-                                  ? Colors.white
-                                  : Colors.grey[600],
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                    if (users.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          widget.user.role == 'foreman'
+                              ? 'No workers assigned to this site yet.\nAsk the Supervisor to assign workers.'
+                              : 'No installers found',
+                          style: TextStyle(color: Colors.grey[500]),
+                          textAlign: TextAlign.center,
                         ),
-                        title: Text(
-                          userName,
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                        subtitle: Text(
-                          userRole.replaceAll('_', ' '),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                        trailing: isAssigned
-                            ? const Icon(
-                                Icons.check_circle,
-                                color: Colors.black87,
-                                size: 22,
-                              )
-                            : Icon(
-                                Icons.add_circle_outline,
-                                color: Colors.grey[400],
-                                size: 22,
-                              ),
-                        onTap: () {
-                          // Update UI immediately, then write to Firestore.
-                          // This avoids setState-after-dispose if the dialog
-                          // closes while the writes are in flight.
-                          if (isAssigned) {
-                            setDialogState(() => currentPeople.remove(userId));
-                            _firestoreService.removePersonFromArea(
-                              areaId: areaId,
-                              userId: userId,
-                            );
-                          } else {
-                            setDialogState(() => currentPeople.add(userId));
-                            _firestoreService.addPersonToArea(
-                              areaId: areaId,
-                              userId: userId,
-                            );
-                          }
-                        },
                       );
-                    },
-                  );
-                },
-              );
-            },
-          ),
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black87,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Done'),
-          ),
-        ],
-      ),
+                    }
+
+                    return StatefulBuilder(
+                      builder: (context, setDialogState) {
+                        return ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: users.length,
+                          itemBuilder: (context, index) {
+                            final userData =
+                                users[index].data() as Map<String, dynamic>;
+                            final userId = users[index].id;
+                            final userName = userData['name'] ?? 'Unknown';
+                            final userRole = userData['role'] ?? '';
+                            final isAssigned = currentPeople.contains(userId);
+
+                            return ListTile(
+                              dense: true,
+                              leading: CircleAvatar(
+                                radius: 16,
+                                backgroundColor: isAssigned
+                                    ? Colors.black87
+                                    : Colors.grey[200],
+                                child: Text(
+                                  userName.isNotEmpty
+                                      ? userName[0].toUpperCase()
+                                      : '?',
+                                  style: TextStyle(
+                                    color: isAssigned
+                                        ? Colors.white
+                                        : Colors.grey[600],
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              title: Text(
+                                userName,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              subtitle: Text(
+                                userRole.replaceAll('_', ' '),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                              trailing: isAssigned
+                                  ? const Icon(
+                                      Icons.check_circle,
+                                      color: Colors.black87,
+                                      size: 22,
+                                    )
+                                  : Icon(
+                                      Icons.add_circle_outline,
+                                      color: Colors.grey[400],
+                                      size: 22,
+                                    ),
+                              onTap: () {
+                                if (isAssigned) {
+                                  setDialogState(
+                                    () => currentPeople.remove(userId),
+                                  );
+                                  _firestoreService.removePersonFromArea(
+                                    areaId: areaId,
+                                    userId: userId,
+                                  );
+                                } else {
+                                  setDialogState(
+                                    () => currentPeople.add(userId),
+                                  );
+                                  _firestoreService.addPersonToArea(
+                                    areaId: areaId,
+                                    userId: userId,
+                                  );
+                                }
+                              },
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              actions: [
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black87,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Done'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

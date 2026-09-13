@@ -23,8 +23,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _isInstallerLogin = false;
 
-  static const Color _purple = Color(0xFF7440D8);
-
   @override
   Widget build(BuildContext context) {
     // Web: centered card layout. Mobile: full screen.
@@ -512,11 +510,15 @@ class _LoginScreenState extends State<LoginScreen> {
         UserModel? user = await _authService.signInWithPin(_pinController.text);
 
         if (user != null && mounted) {
+          Widget dashboard;
+          if (user.role == 'foreman') {
+            dashboard = SupervisorDashboard(user: user);
+          } else {
+            dashboard = InstallerDashboard(user: user);
+          }
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(
-              builder: (context) => InstallerDashboard(user: user),
-            ),
+            MaterialPageRoute(builder: (context) => dashboard),
           );
         } else {
           if (mounted) {
