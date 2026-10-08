@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../models/user_model.dart';
+import '../../services/app_strings.dart';
 
 class InstallerLogScreen extends StatefulWidget {
   final UserModel user;
@@ -38,21 +39,22 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
 
   @override
   Widget build(BuildContext context) {
+    AppStrings.watch(context);
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         backgroundColor: Colors.deepOrange,
         foregroundColor: Colors.white,
-        title: const Text('My Work Log'),
+        title: Text(tr('My Work Log', 'Mi Registro de Trabajo')),
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white60,
-          tabs: const [
-            Tab(text: 'Daily'),
-            Tab(text: 'Weekly'),
-            Tab(text: 'Monthly'),
+          tabs: [
+            Tab(text: tr('Daily', 'Diario')),
+            Tab(text: tr('Weekly', 'Semanal')),
+            Tab(text: tr('Monthly', 'Mensual')),
           ],
         ),
       ),
@@ -84,8 +86,11 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
 
         if (logs.isEmpty) {
           return _buildEmptyState(
-            'No daily logs yet',
-            'Your work history will appear here after your first shift.',
+            tr('No daily logs yet', 'Aún no hay registros diarios'),
+            tr(
+              'Your work history will appear here after your first shift.',
+              'Tu historial de trabajo aparecerá aquí después de tu primer turno.',
+            ),
           );
         }
 
@@ -111,8 +116,8 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
     final afternoonPhotoUrl = data['afternoon_photo_url'] as String?;
 
     final dateStr = clockIn != null
-        ? DateFormat('EEEE, MMM d').format(clockIn)
-        : 'Unknown Date';
+        ? DateFormat('EEEE, MMM d', AppStrings.dateLocale).format(clockIn)
+        : tr('Unknown Date', 'Fecha desconocida');
 
     String hoursWorked = '--';
     if (clockIn != null && clockOut != null) {
@@ -159,7 +164,9 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
                   ),
                 ),
                 Text(
-                  clockIn != null ? DateFormat('MMM').format(clockIn) : '',
+                  clockIn != null
+                      ? DateFormat('MMM', AppStrings.dateLocale).format(clockIn)
+                      : '',
                   style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
@@ -177,7 +184,10 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
             children: [
               _buildMiniStat(
                 Icons.straighten,
-                '${totalSqft.toStringAsFixed(0)} sqft',
+                tr(
+                  '${totalSqft.toStringAsFixed(0)} sqft',
+                  '${totalSqft.toStringAsFixed(0)} pies²',
+                ),
               ),
               const SizedBox(width: 12),
               _buildMiniStat(Icons.schedule, hoursWorked),
@@ -186,19 +196,19 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
           children: [
             // Time details
             _buildDetailRow(
-              'Clock In',
+              tr('Clock In', 'Entrada'),
               clockIn != null ? _formatTime(clockIn) : '--',
               Icons.login_rounded,
               Colors.green,
             ),
             _buildDetailRow(
-              'Clock Out',
+              tr('Clock Out', 'Salida'),
               clockOut != null ? _formatTime(clockOut) : '--',
               Icons.logout_rounded,
               Colors.red,
             ),
             _buildDetailRow(
-              'Hours Worked',
+              tr('Hours Worked', 'Horas Trabajadas'),
               hoursWorked,
               Icons.timer_outlined,
               Colors.blue,
@@ -207,20 +217,29 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
 
             // Sqft breakdown
             _buildDetailRow(
-              'Morning Sqft',
-              '${morningSqft.toStringAsFixed(1)} sqft',
+              tr('Morning Sqft', 'Pies² en la Mañana'),
+              tr(
+                '${morningSqft.toStringAsFixed(1)} sqft',
+                '${morningSqft.toStringAsFixed(1)} pies²',
+              ),
               Icons.wb_sunny_outlined,
               Colors.orange,
             ),
             _buildDetailRow(
-              'Afternoon Sqft',
-              '${afternoonSqft.toStringAsFixed(1)} sqft',
+              tr('Afternoon Sqft', 'Pies² en la Tarde'),
+              tr(
+                '${afternoonSqft.toStringAsFixed(1)} sqft',
+                '${afternoonSqft.toStringAsFixed(1)} pies²',
+              ),
               Icons.wb_twilight,
               Colors.deepPurple,
             ),
             _buildDetailRow(
-              'Total Sqft',
-              '${totalSqft.toStringAsFixed(1)} sqft',
+              tr('Total Sqft', 'Total de Pies²'),
+              tr(
+                '${totalSqft.toStringAsFixed(1)} sqft',
+                '${totalSqft.toStringAsFixed(1)} pies²',
+              ),
               Icons.straighten,
               Colors.deepOrange,
             ),
@@ -228,23 +247,29 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
             // Photos
             if (morningPhotoUrl != null || afternoonPhotoUrl != null) ...[
               const Divider(height: 24),
-              const Text(
-                'Progress Photos',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              Text(
+                tr('Progress Photos', 'Fotos de Avance'),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 8),
               Row(
                 children: [
                   if (morningPhotoUrl != null)
                     Expanded(
-                      child: _buildPhotoThumbnail('Morning', morningPhotoUrl),
+                      child: _buildPhotoThumbnail(
+                        tr('Morning', 'Mañana'),
+                        morningPhotoUrl,
+                      ),
                     ),
                   if (morningPhotoUrl != null && afternoonPhotoUrl != null)
                     const SizedBox(width: 10),
                   if (afternoonPhotoUrl != null)
                     Expanded(
                       child: _buildPhotoThumbnail(
-                        'Afternoon',
+                        tr('Afternoon', 'Tarde'),
                         afternoonPhotoUrl,
                       ),
                     ),
@@ -262,7 +287,7 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
   Widget _buildWeeklyView() {
     final weekEnd = _selectedWeekStart.add(const Duration(days: 6));
     final weekLabel =
-        '${DateFormat('MMM d').format(_selectedWeekStart)} – ${DateFormat('MMM d').format(weekEnd)}';
+        '${DateFormat('MMM d', AppStrings.dateLocale).format(_selectedWeekStart)} – ${DateFormat('MMM d', AppStrings.dateLocale).format(weekEnd)}';
 
     return Column(
       children: [
@@ -340,8 +365,11 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
 
               if (logs.isEmpty) {
                 return _buildEmptyState(
-                  'No logs this week',
-                  'Nothing recorded for $weekLabel',
+                  tr('No logs this week', 'No hay registros esta semana'),
+                  tr(
+                    'Nothing recorded for $weekLabel',
+                    'Nada registrado para $weekLabel',
+                  ),
                 );
               }
 
@@ -373,9 +401,12 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
                   const SizedBox(height: 16),
 
                   // Daily breakdown
-                  const Text(
-                    'Daily Breakdown',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  Text(
+                    tr('Daily Breakdown', 'Desglose Diario'),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   ...logs.map((doc) {
@@ -410,19 +441,19 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
         children: [
           _buildSummaryStatItem(
             value: totalSqft.toStringAsFixed(0),
-            unit: 'sqft',
+            unit: tr('sqft', 'pies²'),
             icon: Icons.straighten,
           ),
           Container(width: 1, height: 40, color: Colors.white30),
           _buildSummaryStatItem(
             value: '${hours}h ${minutes}m',
-            unit: 'hours',
+            unit: tr('hours', 'horas'),
             icon: Icons.schedule,
           ),
           Container(width: 1, height: 40, color: Colors.white30),
           _buildSummaryStatItem(
             value: '$daysWorked',
-            unit: 'days',
+            unit: tr('days', 'días'),
             icon: Icons.calendar_today,
           ),
         ],
@@ -478,7 +509,9 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
           SizedBox(
             width: 40,
             child: Text(
-              clockIn != null ? DateFormat('E').format(clockIn) : '--',
+              clockIn != null
+                  ? DateFormat('E', AppStrings.dateLocale).format(clockIn)
+                  : '--',
               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
             ),
           ),
@@ -493,7 +526,10 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
           ),
           // Sqft
           Text(
-            '${totalSqft.toStringAsFixed(0)} sqft',
+            tr(
+              '${totalSqft.toStringAsFixed(0)} sqft',
+              '${totalSqft.toStringAsFixed(0)} pies²',
+            ),
             style: const TextStyle(
               fontWeight: FontWeight.w700,
               color: Colors.deepOrange,
@@ -514,7 +550,10 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
   // ─── MONTHLY VIEW ──────────────────────────────────────────
 
   Widget _buildMonthlyView() {
-    final monthLabel = DateFormat('MMMM yyyy').format(_selectedMonth);
+    final monthLabel = DateFormat(
+      'MMMM yyyy',
+      AppStrings.dateLocale,
+    ).format(_selectedMonth);
 
     return Column(
       children: [
@@ -593,8 +632,11 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
 
               if (logs.isEmpty) {
                 return _buildEmptyState(
-                  'No logs this month',
-                  'Nothing recorded for $monthLabel',
+                  tr('No logs this month', 'No hay registros este mes'),
+                  tr(
+                    'Nothing recorded for $monthLabel',
+                    'Nada registrado para $monthLabel',
+                  ),
                 );
               }
 
@@ -648,7 +690,7 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
                           children: [
                             _buildSummaryStatItem(
                               value: totalSqft.toStringAsFixed(0),
-                              unit: 'total sqft',
+                              unit: tr('total sqft', 'pies² en total'),
                               icon: Icons.straighten,
                             ),
                             Container(
@@ -658,7 +700,7 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
                             ),
                             _buildSummaryStatItem(
                               value: '${hours}h ${minutes}m',
-                              unit: 'total hours',
+                              unit: tr('total hours', 'horas en total'),
                               icon: Icons.schedule,
                             ),
                           ],
@@ -675,14 +717,20 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
                               Text(
-                                '$daysWorked days worked',
+                                tr(
+                                  '$daysWorked days worked',
+                                  '$daysWorked días trabajados',
+                                ),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 13,
                                 ),
                               ),
                               Text(
-                                '~${avgSqftPerDay.toStringAsFixed(0)} sqft/day avg',
+                                tr(
+                                  '~${avgSqftPerDay.toStringAsFixed(0)} sqft/day avg',
+                                  '~${avgSqftPerDay.toStringAsFixed(0)} pies²/día prom.',
+                                ),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 13,
@@ -697,9 +745,12 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
                   const SizedBox(height: 20),
 
                   // Weekly breakdown
-                  const Text(
-                    'Week by Week',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  Text(
+                    tr('Week by Week', 'Semana por Semana'),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 8),
 
@@ -737,7 +788,7 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
                             ),
                             child: Center(
                               child: Text(
-                                'W$weekNum',
+                                tr('W$weekNum', 'S$weekNum'),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w700,
                                   color: Colors.deepOrange,
@@ -752,14 +803,20 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  '${weekLogs.length} days worked',
+                                  tr(
+                                    '${weekLogs.length} days worked',
+                                    '${weekLogs.length} días trabajados',
+                                  ),
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
                                   ),
                                 ),
                                 Text(
-                                  '${weekHours.inHours}h ${weekHours.inMinutes % 60}m total',
+                                  tr(
+                                    '${weekHours.inHours}h ${weekHours.inMinutes % 60}m total',
+                                    '${weekHours.inHours}h ${weekHours.inMinutes % 60}m en total',
+                                  ),
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey[500],
@@ -769,7 +826,10 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
                             ),
                           ),
                           Text(
-                            '${weekSqft.toStringAsFixed(0)} sqft',
+                            tr(
+                              '${weekSqft.toStringAsFixed(0)} sqft',
+                              '${weekSqft.toStringAsFixed(0)} pies²',
+                            ),
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               color: Colors.deepOrange,

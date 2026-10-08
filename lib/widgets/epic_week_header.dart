@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../services/app_strings.dart';
 
 class EpicWeekHeader extends StatefulWidget {
   final String userName;
@@ -46,9 +47,10 @@ class _EpicWeekHeaderState extends State<EpicWeekHeader> {
 
   @override
   Widget build(BuildContext context) {
+    AppStrings.watch(context);
     final weekEnd = _weekStart.add(const Duration(days: 6));
     final weekLabel =
-        '${DateFormat('MMM d, yyyy').format(_weekStart)} – ${DateFormat('MMM d, yyyy').format(weekEnd)}';
+        '${DateFormat('MMM d, yyyy', AppStrings.dateLocale).format(_weekStart)} – ${DateFormat('MMM d, yyyy', AppStrings.dateLocale).format(weekEnd)}';
     final today = DateTime.now();
     final isCurrentWeek = _weekStart.isAtSameMomentAs(_getWeekStart(today));
 
@@ -72,7 +74,7 @@ class _EpicWeekHeaderState extends State<EpicWeekHeader> {
                   Expanded(
                     child: Center(
                       child: const Text(
-                        'Epic Installation',
+                        'Epic Stone',
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
@@ -188,7 +190,10 @@ class _EpicWeekHeaderState extends State<EpicWeekHeader> {
                       day.year == today.year &&
                       day.month == today.month &&
                       day.day == today.day;
-                  final dayLabel = DateFormat('E').format(day).substring(0, 3);
+                  final dayLabel = DateFormat(
+                    'E',
+                    AppStrings.dateLocale,
+                  ).format(day).substring(0, 3);
 
                   return GestureDetector(
                     onTap: () {

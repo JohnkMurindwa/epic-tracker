@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
+import 'app_strings.dart';
+import 'notification_service.dart';
 import 'package:flutter/foundation.dart';
 
 class AuthService {
@@ -46,6 +48,7 @@ class AuthService {
         role: role,
         pin: pin,
         isActive: true,
+        language: AppStrings.locale,
       );
 
       await _db.collection('users').doc(result.user!.uid).set(user.toMap());
@@ -56,21 +59,39 @@ class AuthService {
       String message = '';
       switch (e.code) {
         case 'email-already-in-use':
-          message = 'This email is already registered!';
+          message = tr(
+            'This email is already registered!',
+            '¡Este correo ya está registrado!',
+          );
           break;
         case 'weak-password':
-          message = 'Password must be at least 6 characters!';
+          message = tr(
+            'Password must be at least 6 characters!',
+            '¡La contraseña debe tener al menos 6 caracteres!',
+          );
           break;
         case 'invalid-email':
-          message = 'Please enter a valid email address!';
+          message = tr(
+            'Please enter a valid email address!',
+            '¡Ingresa un correo electrónico válido!',
+          );
           break;
         default:
-          message = 'Sign up failed: ${e.message}';
+          message = tr(
+            'Sign up failed: ${e.message}',
+            'Error al crear la cuenta: ${e.message}',
+          );
       }
       return {'success': false, 'message': message};
     } catch (e) {
       debugPrint('Sign up error: $e');
-      return {'success': false, 'message': 'Something went wrong. Try again!'};
+      return {
+        'success': false,
+        'message': tr(
+          'Something went wrong. Try again!',
+          'Algo salió mal. ¡Inténtalo de nuevo!',
+        ),
+      };
     }
   }
 
@@ -101,21 +122,36 @@ class AuthService {
       String message = '';
       switch (e.code) {
         case 'user-not-found':
-          message = 'No account found with this email!';
+          message = tr(
+            'No account found with this email!',
+            '¡No hay ninguna cuenta con este correo!',
+          );
           break;
         case 'wrong-password':
-          message = 'Incorrect password!';
+          message = tr('Incorrect password!', '¡Contraseña incorrecta!');
           break;
         case 'invalid-credential':
-          message = 'Invalid email or password!';
+          message = tr(
+            'Invalid email or password!',
+            '¡Correo o contraseña inválidos!',
+          );
           break;
         default:
-          message = 'Sign in failed: ${e.message}';
+          message = tr(
+            'Sign in failed: ${e.message}',
+            'Error al iniciar sesión: ${e.message}',
+          );
       }
       return {'success': false, 'message': message};
     } catch (e) {
       debugPrint('Sign in error: $e');
-      return {'success': false, 'message': 'Something went wrong. Try again!'};
+      return {
+        'success': false,
+        'message': tr(
+          'Something went wrong. Try again!',
+          'Algo salió mal. ¡Inténtalo de nuevo!',
+        ),
+      };
     }
   }
 
@@ -155,6 +191,54 @@ class AuthService {
   // Sign out
   Future<void> signOut() async {
     await _auth.signOut();
+    AppStrings.onSignOut();
+  }
+
+  // Delete account — removes Firestore doc and Firebase Auth user
+  Future<Map<String, dynamic>> deleteAccount(String userId) async {
+    try {
+      // Delete Firestore user document
+      await _db.collection('users').doc(userId).delete();
+
+      // Delete Firebase Auth account (if signed in with email)
+      final user = _auth.currentUser;
+      if (user != null && !user.isAnonymous) {
+        await user.delete();
+      } else {
+        // PIN users are anonymous — just sign out
+        await _auth.signOut();
+      }
+      AppStrings.onSignOut();
+      NotificationService.cancelClockOutReminder();
+
+      return {'success': true};
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        return {
+          'success': false,
+          'message': tr(
+            'For security, please sign out and sign back in, then try deleting your account again.',
+            'Por seguridad, cierra sesión y vuelve a iniciarla, luego intenta eliminar tu cuenta otra vez.',
+          ),
+        };
+      }
+      return {
+        'success': false,
+        'message': tr(
+          'Failed to delete account: ${e.message}',
+          'No se pudo eliminar la cuenta: ${e.message}',
+        ),
+      };
+    } catch (e) {
+      debugPrint('Delete account error: $e');
+      return {
+        'success': false,
+        'message': tr(
+          'Something went wrong. Try again!',
+          'Algo salió mal. ¡Inténtalo de nuevo!',
+        ),
+      };
+    }
   }
 
   // Get user details

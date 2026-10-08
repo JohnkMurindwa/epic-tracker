@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../models/user_model.dart';
+import '../../services/app_strings.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/language_toggle.dart';
 import '../auth/login_screen.dart';
 import 'excel_import_widget.dart';
+import 'timesheets_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
   final UserModel user;
@@ -48,6 +51,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    AppStrings.watch(context);
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -92,7 +96,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
           const SizedBox(width: 8),
           Text(
-            'Admin',
+            AppStrings.role('admin'),
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w500,
@@ -101,7 +105,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
           const Spacer(),
           Text(
-            DateFormat('EEEE, MMM d, yyyy').format(DateTime.now()),
+            DateFormat(
+              'EEEE, MMM d, yyyy',
+              AppStrings.dateLocale,
+            ).format(DateTime.now()),
             style: TextStyle(fontSize: 13, color: Colors.grey[500]),
           ),
           const SizedBox(width: 16),
@@ -124,11 +131,23 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
+          LanguageToggle(color: Colors.grey[700]),
+          const SizedBox(width: 4),
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const TimesheetsScreen()),
+              );
+            },
+            icon: Icon(Icons.assignment, size: 20, color: Colors.grey[500]),
+            tooltip: tr('Timesheets', 'Hojas de horas'),
+          ),
           IconButton(
             onPressed: _logout,
             icon: Icon(Icons.logout, size: 20, color: Colors.grey[500]),
-            tooltip: 'Sign out',
+            tooltip: AppStrings.signOut,
           ),
         ],
       ),
@@ -174,35 +193,41 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   children: [
                     Expanded(
                       child: _kpiCard(
-                        'Total budget',
+                        tr('Total budget', 'Presupuesto total'),
                         '\$${_fmt(totalBudget)}',
-                        'across $activeCount active jobs',
+                        tr(
+                          'across $activeCount active jobs',
+                          'en $activeCount obras activas',
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: _kpiCard(
-                        'Total spent',
+                        tr('Total spent', 'Total gastado'),
                         '\$${_fmt(totalSpent)}',
-                        '${totalConsumed.toStringAsFixed(1)} crew days consumed',
+                        tr(
+                          '${totalConsumed.toStringAsFixed(1)} crew days consumed',
+                          '${totalConsumed.toStringAsFixed(1)} días de equipo usados',
+                        ),
                         isRed: true,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: _kpiCard(
-                        'Remaining',
+                        tr('Remaining', 'Restante'),
                         '\$${_fmt(totalRemaining)}',
-                        '${(totalEstimated - totalConsumed).toStringAsFixed(1)} crew days left',
+                        '${(totalEstimated - totalConsumed).toStringAsFixed(1)} ${AppStrings.crewDaysLeft}',
                         isGreen: true,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: _kpiCard(
-                        'Crew day rate',
+                        tr('Crew day rate', 'Tarifa por día de equipo'),
                         '\$${_crewDayRate.toStringAsFixed(0)}',
-                        'per crew day',
+                        tr('per crew day', 'por día de equipo'),
                       ),
                     ),
                   ],
@@ -212,9 +237,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 // Job Sites Table
                 Row(
                   children: [
-                    const Text(
-                      'Job sites',
-                      style: TextStyle(
+                    Text(
+                      tr('Job sites', 'Obras'),
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -223,7 +248,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     ElevatedButton.icon(
                       onPressed: _showAddJobSiteDialog,
                       icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Add Job Site'),
+                      label: Text(tr('Add Job Site', 'Agregar Obra')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.black87,
                         foregroundColor: Colors.white,
@@ -240,9 +265,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 const SizedBox(height: 24),
 
                 // Today's Activity
-                const Text(
-                  'Today\'s activity',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                Text(
+                  tr('Today\'s activity', 'Actividad de hoy'),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 _buildTodayActivity(),
@@ -281,14 +309,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
             TableRow(
               decoration: BoxDecoration(color: Colors.grey[50]),
               children: [
-                _th('Site'),
-                _th('Location'),
-                _th('Budget'),
-                _th('Spent'),
-                _th('Remaining'),
-                _th('Crew days'),
-                _th('Progress'),
-                _th('Status'),
+                _th(tr('Site', 'Obra')),
+                _th(tr('Location', 'Ubicación')),
+                _th(tr('Budget', 'Presupuesto')),
+                _th(tr('Spent', 'Gastado')),
+                _th(tr('Remaining', 'Restante')),
+                _th(tr('Crew days', 'Días de equipo')),
+                _th(tr('Progress', 'Progreso')),
+                _th(tr('Status', 'Estado')),
               ],
             ),
             // Rows
@@ -370,7 +398,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             child: Center(
               child: Text(
-                'No activity yet today',
+                tr('No activity yet today', 'Aún no hay actividad hoy'),
                 style: TextStyle(color: Colors.grey[400]),
               ),
             ),
@@ -381,15 +409,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
         final Map<String, Map<String, List<Map<String, dynamic>>>> grouped = {};
         for (final doc in logs) {
           final data = doc.data() as Map<String, dynamic>;
-          final name = data['installer_name'] ?? 'Unknown';
+          final name = data['installer_name'] ?? tr('Unknown', 'Desconocido');
           final role = data['installer_role'] ?? '';
           final entries = List<Map<String, dynamic>>.from(
             data['time_entries'] ?? [],
           );
 
           for (final entry in entries) {
-            final projectName = entry['projectName'] as String? ?? 'Unknown';
-            final areaName = entry['areaName'] as String? ?? 'Unknown';
+            final projectName =
+                entry['projectName'] as String? ?? tr('Unknown', 'Desconocido');
+            final areaName =
+                entry['areaName'] as String? ?? tr('Unknown', 'Desconocido');
 
             grouped
                 .putIfAbsent(projectName, () => {})
@@ -479,7 +509,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                   SizedBox(
                                     width: 80,
                                     child: Text(
-                                      '${w['role']}'.replaceAll('_', ' '),
+                                      AppStrings.role(
+                                        '${w['role']}',
+                                      ).replaceAll('_', ' '),
                                       style: TextStyle(
                                         fontSize: 11,
                                         color: Colors.grey[500],
@@ -489,7 +521,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                   SizedBox(
                                     width: 160,
                                     child: Text(
-                                      '${clockIn != null ? _fmtTime(clockIn) : '--'} – ${clockOut != null ? _fmtTime(clockOut) : 'now'}',
+                                      '${clockIn != null ? _fmtTime(clockIn) : '--'} – ${clockOut != null ? _fmtTime(clockOut) : tr('now', 'ahora')}',
                                       style: TextStyle(
                                         fontSize: 11,
                                         color: Colors.grey[500],
@@ -500,7 +532,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                     width: 50,
                                     child: Text(
                                       isActive
-                                          ? 'Active'
+                                          ? tr('Active', 'Activo')
                                           : '${hours.toStringAsFixed(1)}h',
                                       style: TextStyle(
                                         fontSize: 12,
@@ -513,7 +545,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                   ),
                                   Expanded(
                                     child: Text(
-                                      desc,
+                                      AppStrings.workDescription(desc),
                                       style: TextStyle(
                                         fontSize: 11,
                                         color: Colors.grey[500],
@@ -591,7 +623,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   Icon(Icons.arrow_back, size: 18, color: Colors.grey[500]),
                   const SizedBox(width: 6),
                   Text(
-                    'All sites',
+                    tr('All sites', 'Todas las obras'),
                     style: TextStyle(fontSize: 13, color: Colors.grey[500]),
                   ),
                   Icon(Icons.chevron_right, size: 16, color: Colors.grey[400]),
@@ -618,32 +650,45 @@ class _AdminDashboardState extends State<AdminDashboard> {
             Row(
               children: [
                 Expanded(
-                  child: _kpiCard('Site budget', '\$${_fmt(budget)}', ''),
+                  child: _kpiCard(
+                    tr('Site budget', 'Presupuesto de la obra'),
+                    '\$${_fmt(budget)}',
+                    '',
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _kpiCard(
-                    'Spent',
+                    tr('Spent', 'Gastado'),
                     '\$${_fmt(spent)}',
-                    '${totalConsumed.toStringAsFixed(1)} crew days',
+                    tr(
+                      '${totalConsumed.toStringAsFixed(1)} crew days',
+                      '${totalConsumed.toStringAsFixed(1)} días de equipo',
+                    ),
                     isRed: true,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _kpiCard(
-                    'Remaining',
+                    tr('Remaining', 'Restante'),
                     '\$${_fmt(remaining)}',
-                    '${(totalEstimated - totalConsumed).toStringAsFixed(1)} crew days',
+                    tr(
+                      '${(totalEstimated - totalConsumed).toStringAsFixed(1)} crew days',
+                      '${(totalEstimated - totalConsumed).toStringAsFixed(1)} días de equipo',
+                    ),
                     isGreen: true,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _kpiCard(
-                    'Levels',
+                    tr('Levels', 'Niveles'),
                     '${levelGroups.length}',
-                    '${areas.length} areas total',
+                    tr(
+                      '${areas.length} areas total',
+                      '${areas.length} áreas en total',
+                    ),
                   ),
                 ),
               ],
@@ -653,9 +698,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
             // Import button
             Row(
               children: [
-                const Text(
-                  'Levels',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                Text(
+                  tr('Levels', 'Niveles'),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const Spacer(),
                 ElevatedButton.icon(
@@ -669,7 +717,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     );
                   },
                   icon: const Icon(Icons.upload_file, size: 16),
-                  label: const Text('Import Spreadsheet'),
+                  label: Text(
+                    tr('Import Spreadsheet', 'Importar Hoja de Cálculo'),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black87,
                     foregroundColor: Colors.white,
@@ -740,7 +790,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              levelName,
+                              levelName == 'Unassigned'
+                                  ? tr('Unassigned', 'Sin asignar')
+                                  : levelName,
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
@@ -748,7 +800,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              '${levelAreas.length} areas • $levelPeople people • \$${_fmt(levelSpent)} spent',
+                              tr(
+                                '${levelAreas.length} areas • $levelPeople people • \$${_fmt(levelSpent)} spent',
+                                '${levelAreas.length} áreas • $levelPeople personas • \$${_fmt(levelSpent)} gastado',
+                              ),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey[500],
@@ -813,12 +868,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       Icon(Icons.layers, size: 48, color: Colors.grey[300]),
                       const SizedBox(height: 8),
                       Text(
-                        'No areas yet',
+                        tr('No areas yet', 'Aún no hay áreas'),
                         style: TextStyle(color: Colors.grey[400]),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Import a spreadsheet to get started',
+                        tr(
+                          'Import a spreadsheet to get started',
+                          'Importa una hoja de cálculo para empezar',
+                        ),
                         style: TextStyle(fontSize: 12, color: Colors.grey[400]),
                       ),
                     ],
@@ -876,7 +934,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       _selectedLevel = null;
                     }),
                     child: Text(
-                      'All sites',
+                      tr('All sites', 'Todas las obras'),
                       style: TextStyle(fontSize: 13, color: Colors.grey[500]),
                     ),
                   ),
@@ -928,31 +986,42 @@ class _AdminDashboardState extends State<AdminDashboard> {
               children: [
                 Expanded(
                   child: _kpiCard(
-                    'Budget',
+                    tr('Budget', 'Presupuesto'),
                     '\$${_fmt(budget)}',
-                    '${totalEstimated.toStringAsFixed(0)} crew days',
+                    tr(
+                      '${totalEstimated.toStringAsFixed(0)} crew days',
+                      '${totalEstimated.toStringAsFixed(0)} días de equipo',
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _kpiCard(
-                    'Spent',
+                    tr('Spent', 'Gastado'),
                     '\$${_fmt(spent)}',
-                    '${totalConsumed.toStringAsFixed(1)} crew days',
+                    tr(
+                      '${totalConsumed.toStringAsFixed(1)} crew days',
+                      '${totalConsumed.toStringAsFixed(1)} días de equipo',
+                    ),
                     isRed: true,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _kpiCard(
-                    'Remaining',
+                    tr('Remaining', 'Restante'),
                     '\$${_fmt(remaining)}',
-                    '${(totalEstimated - totalConsumed).toStringAsFixed(1)} crew days',
+                    tr(
+                      '${(totalEstimated - totalConsumed).toStringAsFixed(1)} crew days',
+                      '${(totalEstimated - totalConsumed).toStringAsFixed(1)} días de equipo',
+                    ),
                     isGreen: true,
                   ),
                 ),
                 const SizedBox(width: 12),
-                Expanded(child: _kpiCard('Areas', '${areas.length}', '')),
+                Expanded(
+                  child: _kpiCard(tr('Areas', 'Áreas'), '${areas.length}', ''),
+                ),
               ],
             ),
             const SizedBox(height: 24),
@@ -960,9 +1029,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
             // Areas header with view toggle
             Row(
               children: [
-                const Text(
-                  'Areas',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                Text(
+                  tr('Areas', 'Áreas'),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const Spacer(),
                 Container(
@@ -1066,7 +1138,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 ),
                               ),
                               Text(
-                                'Est. ${est.toStringAsFixed(0)}',
+                                tr(
+                                  'Est. ${est.toStringAsFixed(0)}',
+                                  'Est. ${est.toStringAsFixed(0)}',
+                                ),
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: Colors.grey[500],
@@ -1088,22 +1163,28 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           ),
                           const SizedBox(height: 8),
                           _costRow(
-                            'Consumed',
-                            '${consumed.toStringAsFixed(1)} crew days',
+                            tr('Consumed', 'Usado'),
+                            tr(
+                              '${consumed.toStringAsFixed(1)} crew days',
+                              '${consumed.toStringAsFixed(1)} días de equipo',
+                            ),
                           ),
                           _costRow(
-                            'Labor cost',
+                            tr('Labor cost', 'Costo de mano de obra'),
                             '\$${_fmt(costSpent)}',
                             color: const Color(0xFFA32D2D),
                           ),
                           _costRow(
-                            'Remaining',
+                            tr('Remaining', 'Restante'),
                             '\$${_fmt(costRemaining)}',
                             color: const Color(0xFF0F6E56),
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            '${people.length} people assigned',
+                            tr(
+                              '${people.length} people assigned',
+                              '${people.length} personas asignadas',
+                            ),
                             style: TextStyle(
                               fontSize: 11,
                               color: Colors.grey[500],
@@ -1137,12 +1218,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       TableRow(
                         decoration: BoxDecoration(color: Colors.grey[50]),
                         children: [
-                          _th('Area'),
-                          _th('Crew Days'),
-                          _th('Spent'),
-                          _th('Remaining'),
-                          _th('Progress'),
-                          _th('People'),
+                          _th(tr('Area', 'Área')),
+                          _th(tr('Crew Days', 'Días de equipo')),
+                          _th(tr('Spent', 'Gastado')),
+                          _th(tr('Remaining', 'Restante')),
+                          _th(tr('Progress', 'Progreso')),
+                          _th(tr('People', 'Personas')),
                         ],
                       ),
                       ...areas.map((areaDoc) {
@@ -1197,9 +1278,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
             const SizedBox(height: 24),
 
             // Today's activity for this level
-            const Text(
-              'Today\'s activity',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            Text(
+              tr('Today\'s activity', 'Actividad de hoy'),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 10),
             _buildSiteTodayActivity(),
@@ -1252,7 +1333,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             child: Center(
               child: Text(
-                'No activity today',
+                tr('No activity today', 'No hay actividad hoy'),
                 style: TextStyle(color: Colors.grey[400]),
               ),
             ),
@@ -1279,12 +1360,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 TableRow(
                   decoration: BoxDecoration(color: Colors.grey[50]),
                   children: [
-                    _th('Name'),
-                    _th('Role'),
-                    _th('Area'),
-                    _th('Time'),
-                    _th('Hours'),
-                    _th('Work done'),
+                    _th(tr('Name', 'Nombre')),
+                    _th(tr('Role', 'Rol')),
+                    _th(tr('Area', 'Área')),
+                    _th(tr('Time', 'Hora')),
+                    _th(tr('Hours', 'Horas')),
+                    _th(tr('Work done', 'Trabajo hecho')),
                   ],
                 ),
                 ...rows.map((r) {
@@ -1296,18 +1377,26 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   return TableRow(
                     children: [
                       _td('${r['name']}', bold: true),
-                      _td('${r['role']}'.replaceAll('_', ' '), muted: true),
+                      _td(
+                        AppStrings.role('${r['role']}').replaceAll('_', ' '),
+                        muted: true,
+                      ),
                       _td('${r['areaName'] ?? ''}'),
                       _td(
-                        '${clockIn != null ? _fmtTime(clockIn) : '--'} – ${clockOut != null ? _fmtTime(clockOut) : 'now'}',
+                        '${clockIn != null ? _fmtTime(clockIn) : '--'} – ${clockOut != null ? _fmtTime(clockOut) : tr('now', 'ahora')}',
                         muted: true,
                       ),
                       _td(
-                        isActive ? 'Active' : '${hours.toStringAsFixed(1)}h',
+                        isActive
+                            ? tr('Active', 'Activo')
+                            : '${hours.toStringAsFixed(1)}h',
                         bold: true,
                         color: isActive ? Colors.green : null,
                       ),
-                      _td('${r['description'] ?? ''}', muted: true),
+                      _td(
+                        AppStrings.workDescription(r['description'] as String?),
+                        muted: true,
+                      ),
                     ],
                   );
                 }),
@@ -1362,7 +1451,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       _selectedAreaName = null;
                     }),
                     child: Text(
-                      'All sites',
+                      tr('All sites', 'Todas las obras'),
                       style: TextStyle(fontSize: 13, color: Colors.grey[500]),
                     ),
                   ),
@@ -1431,7 +1520,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    progress >= 1.0 ? 'Complete' : 'In progress',
+                    progress >= 1.0
+                        ? tr('Complete', 'Completo')
+                        : tr('In progress', 'En progreso'),
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -1454,35 +1545,41 @@ class _AdminDashboardState extends State<AdminDashboard> {
               children: [
                 Expanded(
                   child: _kpiCard(
-                    'Estimated',
+                    tr('Estimated', 'Estimado'),
                     '${est.toStringAsFixed(0)}',
-                    'crew days',
+                    tr('crew days', 'días de equipo'),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _kpiCard(
-                    'Consumed',
+                    tr('Consumed', 'Usado'),
                     '${consumed.toStringAsFixed(1)}',
-                    '\$${_fmt(costSpent)} labor',
+                    tr(
+                      '\$${_fmt(costSpent)} labor',
+                      '\$${_fmt(costSpent)} mano de obra',
+                    ),
                     isRed: true,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _kpiCard(
-                    'Remaining',
+                    tr('Remaining', 'Restante'),
                     '${remaining.toStringAsFixed(1)}',
-                    '\$${_fmt(costRemaining)} left',
+                    tr(
+                      '\$${_fmt(costRemaining)} left',
+                      '\$${_fmt(costRemaining)} restante',
+                    ),
                     isGreen: true,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _kpiCard(
-                    'People',
+                    tr('People', 'Personas'),
                     '${people.length}',
-                    'currently assigned',
+                    tr('currently assigned', 'asignadas ahora'),
                   ),
                 ),
               ],
@@ -1511,7 +1608,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     style: TextStyle(fontSize: 11, color: Colors.grey[400]),
                   ),
                   Text(
-                    '${(progress * 100).toStringAsFixed(0)}% complete',
+                    tr(
+                      '${(progress * 100).toStringAsFixed(0)}% complete',
+                      '${(progress * 100).toStringAsFixed(0)}% completo',
+                    ),
                     style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                   ),
                   Text(
@@ -1533,7 +1633,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Current crew (${people.length})',
+                        tr(
+                          'Current crew (${people.length})',
+                          'Equipo actual (${people.length})',
+                        ),
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
@@ -1546,11 +1649,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           builder: (context, snap) {
                             final uData =
                                 snap.data?.data() as Map<String, dynamic>?;
-                            final name = uData?['name'] ?? 'Loading...';
-                            final role = (uData?['role'] ?? '').replaceAll(
-                              '_',
-                              ' ',
-                            );
+                            final name = uData?['name'] ?? AppStrings.loading;
+                            final role = AppStrings.role(
+                              uData?['role'] ?? '',
+                            ).replaceAll('_', ' ');
                             return Container(
                               padding: const EdgeInsets.symmetric(vertical: 8),
                               decoration: BoxDecoration(
@@ -1609,9 +1711,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
             const SizedBox(height: 24),
 
             // Work history
-            const Text(
-              'Work history',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            Text(
+              tr('Work history', 'Historial de trabajo'),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 10),
             _buildAreaWorkHistory(),
@@ -1643,8 +1745,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
             if (entry['areaId'] == _selectedAreaId) {
               final logDate = (data['log_date'] as Timestamp?)?.toDate();
               final dateKey = logDate != null
-                  ? DateFormat('EEE, MMM d').format(logDate)
-                  : 'Unknown';
+                  ? DateFormat(
+                      'EEE, MMM d',
+                      AppStrings.dateLocale,
+                    ).format(logDate)
+                  : tr('Unknown', 'Desconocido');
 
               dayGroups.putIfAbsent(dateKey, () => []).add({
                 'name': data['installer_name'],
@@ -1670,7 +1775,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             child: Center(
               child: Text(
-                'No work logged yet',
+                tr('No work logged yet', 'Aún no hay trabajo registrado'),
                 style: TextStyle(color: Colors.grey[400]),
               ),
             ),
@@ -1715,7 +1820,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   subtitle: Row(
                     children: [
                       Text(
-                        '${workers.length} workers · ${totalHours.toStringAsFixed(1)}h',
+                        tr(
+                          '${workers.length} workers · ${totalHours.toStringAsFixed(1)}h',
+                          '${workers.length} trabajadores · ${totalHours.toStringAsFixed(1)}h',
+                        ),
                         style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                       ),
                       if (crewDaysAfter != null) ...[
@@ -1730,7 +1838,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            '${crewDaysAfter.toStringAsFixed(1)} crew days after',
+                            tr(
+                              '${crewDaysAfter.toStringAsFixed(1)} crew days after',
+                              '${crewDaysAfter.toStringAsFixed(1)} días de equipo después',
+                            ),
                             style: TextStyle(
                               fontSize: 10,
                               color: Colors.grey[600],
@@ -1752,7 +1863,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     String lunchText = '';
                     if (lunchStart != null && lunchEnd != null) {
                       lunchText =
-                          ', lunch ${_fmtTime(lunchStart)}–${_fmtTime(lunchEnd)}';
+                          ', ${tr('lunch', 'almuerzo')} ${_fmtTime(lunchStart)}–${_fmtTime(lunchEnd)}';
                     }
 
                     return Container(
@@ -1792,7 +1903,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                   ),
                                 ),
                                 Text(
-                                  '${clockIn != null ? _fmtTime(clockIn) : '--'} – ${clockOut != null ? _fmtTime(clockOut) : 'now'} (${hours.toStringAsFixed(1)}h$lunchText)',
+                                  '${clockIn != null ? _fmtTime(clockIn) : '--'} – ${clockOut != null ? _fmtTime(clockOut) : tr('now', 'ahora')} (${hours.toStringAsFixed(1)}h$lunchText)',
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: Colors.grey[500],
@@ -1800,7 +1911,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 ),
                                 if (desc.isNotEmpty)
                                   Text(
-                                    desc,
+                                    AppStrings.workDescription(desc),
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: Colors.grey[600],
@@ -1972,7 +2083,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text(
-          isActive ? 'Active' : 'Done',
+          isActive ? tr('Active', 'Activo') : tr('Done', 'Terminado'),
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w600,
@@ -2006,7 +2117,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Add Job Site'),
+        title: Text(tr('Add Job Site', 'Agregar Obra')),
         content: SizedBox(
           width: 400,
           child: Column(
@@ -2015,8 +2126,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
               TextField(
                 controller: nameCtrl,
                 decoration: InputDecoration(
-                  labelText: 'Job Site Name',
-                  hintText: 'e.g. Hilton Lobby',
+                  labelText: tr('Job Site Name', 'Nombre de la obra'),
+                  hintText: tr('e.g. Hilton Lobby', 'ej. Hilton Lobby'),
                   prefixIcon: const Icon(Icons.business),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -2027,8 +2138,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
               TextField(
                 controller: locationCtrl,
                 decoration: InputDecoration(
-                  labelText: 'Location',
-                  hintText: 'e.g. Las Vegas, NV',
+                  labelText: tr('Location', 'Ubicación'),
+                  hintText: tr('e.g. Las Vegas, NV', 'ej. Las Vegas, NV'),
                   prefixIcon: const Icon(Icons.location_on),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -2041,7 +2152,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: Text(AppStrings.cancel),
           ),
           ElevatedButton(
             onPressed: () {
@@ -2064,7 +2175,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               backgroundColor: Colors.black87,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Create'),
+            child: Text(tr('Create', 'Crear')),
           ),
         ],
       ),

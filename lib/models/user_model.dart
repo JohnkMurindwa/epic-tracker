@@ -8,6 +8,9 @@ class UserModel {
   final String? currentProjectId;
   final bool isActive;
 
+  /// Preferred app language: 'en' or 'es' (null until the user picks one).
+  final String? language;
+
   UserModel({
     required this.id,
     required this.name,
@@ -17,6 +20,7 @@ class UserModel {
     required this.pin,
     this.currentProjectId,
     required this.isActive,
+    this.language,
   });
 
   // Convert Firestore document to UserModel
@@ -30,6 +34,7 @@ class UserModel {
       pin: map['pin'] ?? '',
       currentProjectId: map['current_project_id'],
       isActive: map['is_active'] ?? true,
+      language: map['language'],
     );
   }
 
@@ -43,6 +48,7 @@ class UserModel {
       'pin': pin,
       'current_project_id': currentProjectId,
       'is_active': isActive,
+      if (language != null) 'language': language,
     };
   }
 }

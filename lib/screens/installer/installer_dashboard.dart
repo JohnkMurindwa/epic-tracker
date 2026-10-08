@@ -6,7 +6,10 @@ import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import '../auth/login_screen.dart';
 import '../../widgets/epic_week_header.dart';
+import '../../widgets/offline_banner.dart';
 import 'package:intl/intl.dart';
+import '../../services/app_strings.dart';
+import '../../services/notification_service.dart';
 
 class InstallerDashboard extends StatefulWidget {
   final UserModel user;
@@ -54,13 +57,22 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
   Future<void> _loadTodaysState() async {
     try {
       final log = await _firestoreService.getTodaysLog(widget.user.id);
-      if (log == null || !mounted) return;
+      if (log == null) {
+        NotificationService.cancelClockOutReminder();
+        return;
+      }
 
       final entries = List<Map<String, dynamic>>.from(
         log['time_entries'] ?? [],
       );
       final hasOpenEntry =
           entries.isNotEmpty && entries.last['clockOut'] == null;
+
+      // Remind at 4:30 PM if still clocked in; cancel once clocked out.
+      NotificationService.syncClockOutReminder(
+        isClockedIn: hasOpenEntry && !(log['is_day_complete'] ?? false),
+      );
+      if (!mounted) return;
 
       setState(() {
         _timeEntries = entries;
@@ -105,16 +117,19 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    AppStrings.watch(context);
     return Scaffold(
       backgroundColor: Colors.white,
       body: Column(
         children: [
+          const OfflineBanner(),
           EpicWeekHeader(
             userName: widget.user.name,
             userRole: widget.user.role,
             onDaySelected: (day) {
               setState(() => _selectedDay = day);
             },
+            onAvatarTap: _showProfileSheet,
           ),
           Expanded(
             child: SingleChildScrollView(
@@ -153,17 +168,17 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Row(
+                              Row(
                                 children: [
-                                  Icon(
+                                  const Icon(
                                     Icons.check_circle,
                                     color: Colors.black87,
                                     size: 22,
                                   ),
-                                  SizedBox(width: 10),
+                                  const SizedBox(width: 10),
                                   Text(
-                                    'Day Complete',
-                                    style: TextStyle(
+                                    AppStrings.dayComplete,
+                                    style: const TextStyle(
                                       fontWeight: FontWeight.w700,
                                       fontSize: 15,
                                       color: Colors.green,
@@ -174,7 +189,10 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                               if (crewDaysLeft != null) ...[
                                 const SizedBox(height: 10),
                                 Text(
-                                  '${crewDaysLeft.toStringAsFixed(1)} crew days to go',
+                                  tr(
+                                    '${crewDaysLeft.toStringAsFixed(1)} crew days to go',
+                                    'Faltan ${crewDaysLeft.toStringAsFixed(1)} días de cuadrilla',
+                                  ),
                                   style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w800,
@@ -225,9 +243,9 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'On Lunch Break',
-                                  style: TextStyle(
+                                Text(
+                                  tr('On Lunch Break', 'En el almuerzo'),
+                                  style: const TextStyle(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 15,
                                     color: Colors.white,
@@ -235,7 +253,10 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                                 ),
                                 if (_lunchStartTime != null)
                                   Text(
-                                    'Started at ${_formatTime(_lunchStartTime!)}',
+                                    tr(
+                                      'Started at ${_formatTime(_lunchStartTime!)}',
+                                      'Empezó a las ${_formatTime(_lunchStartTime!)}',
+                                    ),
                                     style: const TextStyle(
                                       fontSize: 12,
                                       color: Colors.white70,
@@ -248,7 +269,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                       ),
                       const SizedBox(height: 16),
                       _buildPillButton(
-                        label: 'end lunch',
+                        label: tr('end lunch', 'terminar almuerzo'),
                         color: Colors.grey[600]!,
                         onTap: _endLunch,
                       ),
@@ -262,14 +283,14 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                       if (!_hasHadLunch) ...[
                         const SizedBox(height: 12),
                         _buildPillButton(
-                          label: 'start lunch',
+                          label: tr('start lunch', 'iniciar almuerzo'),
                           color: Colors.grey[500]!,
                           onTap: _startLunchFromArea,
                         ),
                       ],
                       const SizedBox(height: 12),
                       _buildPillButton(
-                        label: 'clock out',
+                        label: tr('clock out', 'registrar salida'),
                         color: Colors.black87,
                         onTap: _showClockOutDialog,
                       ),
@@ -282,16 +303,13 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                         !_isDayComplete) ...[
                       const SizedBox(height: 20),
                       _buildPillButton(
-                        label: 'finish day',
+                        label: tr('finish day', 'terminar el día'),
                         color: Colors.black87,
                         onTap: _finishDay,
                       ),
                     ],
                   ],
 
-                  // Sign out
-                  const SizedBox(height: 40),
-                  _buildSignOutButton(),
                   const SizedBox(height: 24),
                 ],
               ),
@@ -336,13 +354,13 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
         String urgencyLabel;
         if (progress >= 0.75) {
           cardColor = const Color(0xFFD32F2F); // red — crunch time
-          urgencyLabel = 'CRUNCH TIME';
+          urgencyLabel = tr('CRUNCH TIME', 'TIEMPO CRÍTICO');
         } else if (progress >= 0.5) {
           cardColor = const Color(0xFFEF6C00); // orange — halfway warning
-          urgencyLabel = 'PUSH HARD';
+          urgencyLabel = tr('PUSH HARD', 'A DARLE DURO');
         } else {
           cardColor = Colors.black87;
-          urgencyLabel = 'ON TRACK';
+          urgencyLabel = tr('ON TRACK', 'A TIEMPO');
         }
 
         return Center(
@@ -371,7 +389,8 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _currentAreaName ?? 'Current Area',
+                              _currentAreaName ??
+                                  tr('Current Area', 'Área actual'),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 14,
@@ -426,7 +445,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                           ),
                         ),
                         Text(
-                          'CREW DAYS LEFT',
+                          tr('CREW DAYS LEFT', 'DÍAS DE CUADRILLA RESTANTES'),
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.85),
                             fontSize: 11,
@@ -466,7 +485,10 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '$peopleCount working',
+                            tr(
+                              '$peopleCount working',
+                              '$peopleCount trabajando',
+                            ),
                             style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 12,
@@ -475,7 +497,10 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                         ],
                       ),
                       Text(
-                        '${(progress * 100).toStringAsFixed(0)}% done',
+                        tr(
+                          '${(progress * 100).toStringAsFixed(0)}% done',
+                          '${(progress * 100).toStringAsFixed(0)}% hecho',
+                        ),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 12,
@@ -554,7 +579,12 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  allDone ? 'All areas done for today' : 'No areas assigned',
+                  allDone
+                      ? tr(
+                          'All areas done for today',
+                          'Todas las áreas terminadas por hoy',
+                        )
+                      : tr('No areas assigned', 'No tienes áreas asignadas'),
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey[500],
@@ -564,8 +594,14 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                 const SizedBox(height: 4),
                 Text(
                   allDone
-                      ? 'Tap finish day below when you\'re done'
-                      : 'Ask your Supervisor to assign you to an area',
+                      ? tr(
+                          'Tap finish day below when you\'re done',
+                          'Toca terminar el día abajo cuando acabes',
+                        )
+                      : tr(
+                          'Ask your Supervisor to assign you to an area',
+                          'Pídele a tu supervisor que te asigne un área',
+                        ),
                   style: TextStyle(fontSize: 13, color: Colors.grey[400]),
                 ),
               ],
@@ -578,8 +614,14 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
           children: [
             Text(
               _timeEntries.isEmpty
-                  ? 'Clock in to start your day'
-                  : 'Clock in to another area',
+                  ? tr(
+                      'Clock in to start your day',
+                      'Registra tu entrada para empezar el día',
+                    )
+                  : tr(
+                      'Clock in to another area',
+                      'Registra tu entrada en otra área',
+                    ),
               style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
             const SizedBox(height: 10),
@@ -635,7 +677,10 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                       ),
                     ),
                     Text(
-                      '$projectName • ${crewDaysLeft.toStringAsFixed(1)} crew days left',
+                      tr(
+                        '$projectName • ${crewDaysLeft.toStringAsFixed(1)} crew days left',
+                        '$projectName • ${crewDaysLeft.toStringAsFixed(1)} días de cuadrilla restantes',
+                      ),
                       style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                     ),
                   ],
@@ -650,9 +695,9 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                   color: Colors.black87,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Text(
-                  'clock in',
-                  style: TextStyle(
+                child: Text(
+                  tr('clock in', 'registrar entrada'),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -687,7 +732,10 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Working at $_currentAreaName',
+                  tr(
+                    'Working at $_currentAreaName',
+                    'Trabajando en $_currentAreaName',
+                  ),
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 15,
@@ -722,7 +770,8 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
     // Group entries by area
     final Map<String, List<Map<String, dynamic>>> areaGroups = {};
     for (final entry in completedEntries) {
-      final areaName = entry['areaName'] as String? ?? 'Unknown';
+      final areaName =
+          entry['areaName'] as String? ?? tr('Unknown', 'Desconocida');
       areaGroups.putIfAbsent(areaName, () => []).add(entry);
     }
 
@@ -737,7 +786,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Today\'s Work',
+            tr('Today\'s Work', 'Trabajo de hoy'),
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
@@ -764,7 +813,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
               if (clockOut == null) {
                 isActive = true;
                 timeRanges.add(
-                  '${clockIn != null ? _formatTime(clockIn) : '--'} – now',
+                  '${clockIn != null ? _formatTime(clockIn) : '--'} – ${tr('now', 'ahora')}',
                 );
               } else {
                 timeRanges.add(
@@ -776,7 +825,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
               if (description != null &&
                   description.isNotEmpty &&
                   description != 'Went on lunch break') {
-                descriptions.add(description);
+                descriptions.add(AppStrings.workDescription(description));
               }
             }
 
@@ -825,9 +874,9 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                             color: Colors.green.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: const Text(
-                            'Active',
-                            style: TextStyle(
+                          child: Text(
+                            tr('Active', 'Activo'),
+                            style: const TextStyle(
                               fontSize: 10,
                               color: Colors.green,
                               fontWeight: FontWeight.w600,
@@ -886,7 +935,10 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
       _selectedDay.month,
       _selectedDay.day,
     );
-    final dateLabel = DateFormat('EEEE, MMM d, yyyy').format(_selectedDay);
+    final dateLabel = DateFormat(
+      'EEEE, MMM d, yyyy',
+      AppStrings.dateLocale,
+    ).format(_selectedDay);
 
     return StreamBuilder<QuerySnapshot>(
       stream: _db
@@ -928,7 +980,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                 Icon(Icons.event_busy, size: 56, color: Colors.grey[300]),
                 const SizedBox(height: 12),
                 Text(
-                  'No work logged',
+                  tr('No work logged', 'No hay trabajo registrado'),
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey[500],
@@ -937,7 +989,10 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'You didn\'t clock in on this day',
+                  tr(
+                    'You didn\'t clock in on this day',
+                    'No registraste entrada este día',
+                  ),
                   style: TextStyle(fontSize: 13, color: Colors.grey[400]),
                 ),
               ],
@@ -953,7 +1008,8 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
         // Group by area
         final Map<String, List<Map<String, dynamic>>> areaGroups = {};
         for (final entry in entries) {
-          final areaName = entry['areaName'] as String? ?? 'Unknown';
+          final areaName =
+              entry['areaName'] as String? ?? tr('Unknown', 'Desconocida');
           areaGroups.putIfAbsent(areaName, () => []).add(entry);
         }
 
@@ -991,7 +1047,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                 );
 
                 if (description != null && description.isNotEmpty) {
-                  descriptions.add(description);
+                  descriptions.add(AppStrings.workDescription(description));
                 }
               }
 
@@ -1065,7 +1121,10 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          '${crewDaysLeftAfter.toStringAsFixed(1)} crew days to go',
+                          tr(
+                            '${crewDaysLeftAfter.toStringAsFixed(1)} crew days to go',
+                            'Faltan ${crewDaysLeftAfter.toStringAsFixed(1)} días de cuadrilla',
+                          ),
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
@@ -1123,7 +1182,12 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Clocked in at ${area['name']}'),
+          content: Text(
+            tr(
+              'Clocked in at ${area['name']}',
+              'Entrada registrada en ${area['name']}',
+            ),
+          ),
           backgroundColor: Colors.black87,
         ),
       );
@@ -1138,21 +1202,8 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
   }
 
   void _showClockOutDialog() {
-    final List<String> descriptionOptions = [
-      'Waterproofing at shower pan',
-      'Drain installation at shower pan',
-      'Paper & lath',
-      'Scratch',
-      'Float walls',
-      'Hydroban paint',
-      'Layout tile',
-      'Install tile',
-      'Grout',
-      'Float shower pan',
-      'Float bath floor',
-      'Apply grout',
-      'Seal the tile',
-    ];
+    // English values are saved to Firestore; only the display is translated.
+    const List<String> descriptionOptions = AppStrings.workItems;
 
     final Set<int> selected = {};
 
@@ -1162,7 +1213,10 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text(
-            'Clock out of $_currentAreaName',
+            tr(
+              'Clock out of $_currentAreaName',
+              'Registrar salida de $_currentAreaName',
+            ),
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
           content: SizedBox(
@@ -1172,7 +1226,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'What did you do?',
+                  tr('What did you do?', '¿Qué hiciste?'),
                   style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 10),
@@ -1218,7 +1272,9 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  descriptionOptions[index],
+                                  AppStrings.workItem(
+                                    descriptionOptions[index],
+                                  ),
                                   style: TextStyle(
                                     fontSize: 14,
                                     color: isSelected
@@ -1243,14 +1299,19 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
+              child: Text(AppStrings.cancel),
             ),
             ElevatedButton(
               onPressed: () {
                 if (selected.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Please select what you did'),
+                    SnackBar(
+                      content: Text(
+                        tr(
+                          'Please select what you did',
+                          'Selecciona lo que hiciste',
+                        ),
+                      ),
                       backgroundColor: Colors.orange,
                     ),
                   );
@@ -1261,6 +1322,8 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                 final description = sortedSelection
                     .map((i) => descriptionOptions[i])
                     .join(', ');
+
+                final messenger = ScaffoldMessenger.of(context);
 
                 Navigator.pop(dialogContext);
 
@@ -1278,9 +1341,9 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                         _currentProjectName = null;
                       });
                       _loadTodaysState();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Clocked out'),
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(tr('Clocked out', 'Salida registrada')),
                           backgroundColor: Colors.black87,
                         ),
                       );
@@ -1290,7 +1353,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                 backgroundColor: Colors.black87,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Clock Out'),
+              child: Text(tr('Clock Out', 'Registrar Salida')),
             ),
           ],
         ),
@@ -1300,12 +1363,15 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
 
   Future<void> _finishDay() async {
     await _firestoreService.completeDayLog(userId: widget.user.id);
+    NotificationService.cancelClockOutReminder();
     setState(() => _isDayComplete = true);
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Day complete! Great work.'),
+      SnackBar(
+        content: Text(
+          tr('Day complete! Great work.', '¡Día terminado! Buen trabajo.'),
+        ),
         backgroundColor: Colors.black87,
       ),
     );
@@ -1341,7 +1407,12 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Lunch started at ${_formatTime(_lunchStartTime!)}'),
+        content: Text(
+          tr(
+            'Lunch started at ${_formatTime(_lunchStartTime!)}',
+            'Almuerzo iniciado a las ${_formatTime(_lunchStartTime!)}',
+          ),
+        ),
         backgroundColor: Colors.orange,
       ),
     );
@@ -1374,7 +1445,12 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Back to work at ${_currentAreaName ?? "your area"}'),
+        content: Text(
+          tr(
+            'Back to work at ${_currentAreaName ?? "your area"}',
+            'De vuelta al trabajo en ${_currentAreaName ?? "tu área"}',
+          ),
+        ),
         backgroundColor: Colors.blue,
       ),
     );
@@ -1384,14 +1460,20 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
   Future<Position?> _getCurrentLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      throw 'Location services are disabled. Please enable them in Settings.';
+      throw tr(
+        'Location services are disabled. Please enable them in Settings.',
+        'La ubicación está desactivada. Actívala en Configuración.',
+      );
     }
 
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        throw 'Location permission denied. Please allow location access to clock in.';
+        throw tr(
+          'Location permission denied. Please allow location access to clock in.',
+          'Permiso de ubicación denegado. Permite el acceso a la ubicación para registrar tu entrada.',
+        );
       }
     }
 
@@ -1400,14 +1482,22 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
         await showDialog(
           context: context,
           builder: (dialogContext) => AlertDialog(
-            title: const Text('Location Access Required'),
-            content: const Text(
-              'You previously denied location access. Epic Installation needs your location to verify you\'re on the job site.\n\nPlease open Settings and enable location for this app.',
+            title: Text(
+              tr(
+                'Location Access Required',
+                'Se necesita acceso a la ubicación',
+              ),
+            ),
+            content: Text(
+              tr(
+                'You previously denied location access. Epic Stone needs your location to verify you\'re on the job site.\n\nPlease open Settings and enable location for this app.',
+                'Antes negaste el acceso a la ubicación. Epic Stone necesita tu ubicación para confirmar que estás en la obra.\n\nAbre Configuración y activa la ubicación para esta app.',
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Cancel'),
+                child: Text(AppStrings.cancel),
               ),
               ElevatedButton(
                 onPressed: () {
@@ -1418,7 +1508,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                   backgroundColor: Colors.black87,
                   foregroundColor: Colors.white,
                 ),
-                child: const Text('Open Settings'),
+                child: Text(tr('Open Settings', 'Abrir Configuración')),
               ),
             ],
           ),
@@ -1436,6 +1526,188 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
     navigator.pushReplacement(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
     );
+  }
+
+  void _showProfileSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle bar
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Avatar + Name + Role
+                CircleAvatar(
+                  radius: 32,
+                  backgroundColor: Colors.black87.withValues(alpha: 0.1),
+                  child: Text(
+                    _getInitials(widget.user.name),
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  widget.user.name,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _formatRole(widget.user.role),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 20),
+                // Language toggle
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      AppStrings.toggleLocale();
+                      Navigator.pop(sheetContext);
+                      setState(() {}); // Refresh UI with new language
+                    },
+                    icon: const Icon(Icons.language, size: 18),
+                    label: Text(AppStrings.isSpanish ? 'English' : 'Español'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black87,
+                      side: BorderSide(color: Colors.grey[300]!),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Sign Out
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      _logout();
+                    },
+                    icon: const Icon(Icons.logout, size: 18),
+                    label: Text(AppStrings.signOut),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black87,
+                      side: const BorderSide(color: Colors.black54),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Delete Account
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      _confirmDeleteAccount();
+                    },
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: Text(AppStrings.deleteAccount),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _getInitials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return name.isNotEmpty ? name[0].toUpperCase() : '?';
+  }
+
+  String _formatRole(String role) => AppStrings.role(role);
+
+  Future<void> _confirmDeleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(AppStrings.deleteAccountConfirmTitle),
+        content: Text(AppStrings.deleteAccountConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(AppStrings.cancel),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(AppStrings.delete),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() => _isLoading = true);
+      final result = await _authService.deleteAccount(widget.user.id);
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      if (result['success'] == true) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result['message'] ??
+                  tr(
+                    'Failed to delete account',
+                    'No se pudo eliminar la cuenta',
+                  ),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1482,41 +1754,6 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                       ),
                     ),
                   ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSignOutButton() {
-    return Center(
-      child: FractionallySizedBox(
-        widthFactor: 0.85,
-        child: GestureDetector(
-          onTap: _logout,
-          child: Container(
-            height: 52,
-            decoration: BoxDecoration(
-              color: Colors.grey[700],
-              borderRadius: BorderRadius.circular(26),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withValues(alpha: 0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: const Center(
-              child: Text(
-                'sign out',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
           ),
         ),
       ),

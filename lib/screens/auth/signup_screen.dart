@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
+import '../../services/app_strings.dart';
+import '../../widgets/language_toggle.dart';
 import '../../models/user_model.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -20,12 +22,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppStrings.watch(context);
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.black87,
         foregroundColor: Colors.white,
-        title: const Text('Create Account'),
+        title: Text(tr('Create Account', 'Crear Cuenta')),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 8),
+            child: Center(child: LanguageToggle(color: Colors.white)),
+          ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -34,18 +43,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-              const Text(
-                'Join Epic Installation',
-                style: TextStyle(
+              Text(
+                tr('Join Epic Stone', 'Únete a Epic Stone'),
+                style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w600,
                   color: Colors.black87,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Fill in your details to get started',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+              Text(
+                tr(
+                  'Fill in your details to get started',
+                  'Completa tus datos para comenzar',
+                ),
+                style: const TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 32),
 
@@ -53,7 +65,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               TextField(
                 controller: _nameController,
                 decoration: InputDecoration(
-                  labelText: 'Full Name',
+                  labelText: tr('Full Name', 'Nombre completo'),
                   prefixIcon: const Icon(Icons.person_outlined),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -74,7 +86,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
-                  labelText: 'Email Address',
+                  labelText: tr('Email Address', 'Correo electrónico'),
                   prefixIcon: const Icon(Icons.email_outlined),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -95,7 +107,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
                 decoration: InputDecoration(
-                  labelText: 'Phone Number',
+                  labelText: tr('Phone Number', 'Número de teléfono'),
                   prefixIcon: const Icon(Icons.phone_outlined),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -116,7 +128,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 controller: _passwordController,
                 obscureText: true,
                 decoration: InputDecoration(
-                  labelText: 'Password',
+                  labelText: tr('Password', 'Contraseña'),
                   prefixIcon: const Icon(Icons.lock_outlined),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -133,19 +145,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
               const SizedBox(height: 20),
 
               // Role Selection
-              const Text(
-                'What is your role?',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              Text(
+                tr('What is your role?', '¿Cuál es tu puesto?'),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _buildRoleChip('Installer', 'installer'),
-                  _buildRoleChip('Junior Installer', 'junior_installer'),
-                  _buildRoleChip('Helper', 'helper'),
-                  _buildRoleChip('Foreman', 'foreman'),
+                  _buildRoleChip(AppStrings.role('installer'), 'installer'),
+                  _buildRoleChip(
+                    tr('Junior Installer', 'Instalador Junior'),
+                    'junior_installer',
+                  ),
+                  _buildRoleChip(tr('Helper', 'Ayudante'), 'helper'),
+                  _buildRoleChip(AppStrings.role('foreman'), 'foreman'),
                 ],
               ),
               const SizedBox(height: 32),
@@ -172,9 +190,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             strokeWidth: 2,
                           ),
                         )
-                      : const Text(
-                          'Create Account',
-                          style: TextStyle(
+                      : Text(
+                          tr('Create Account', 'Crear Cuenta'),
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
                           ),
@@ -187,12 +205,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Already have an account? "),
+                  Text(tr('Already have an account? ', '¿Ya tienes cuenta? ')),
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: const Text(
-                      'Sign In',
-                      style: TextStyle(
+                    child: Text(
+                      tr('Sign In', 'Iniciar Sesión'),
+                      style: const TextStyle(
                         color: Colors.black87,
                         fontWeight: FontWeight.w600,
                       ),
@@ -213,8 +231,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
         _phoneController.text.isEmpty ||
         _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill in all fields!'),
+        SnackBar(
+          content: Text(
+            tr(
+              'Please fill in all fields!',
+              '¡Por favor llena todos los campos!',
+            ),
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -239,11 +262,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
           context: context,
           barrierDismissible: false,
           builder: (dialogContext) => AlertDialog(
-            title: const Text('Account Created!'),
+            title: Text(tr('Account Created!', '¡Cuenta Creada!')),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Your 5 digit PIN is:'),
+                Text(tr('Your 5 digit PIN is:', 'Tu PIN de 5 dígitos es:')),
                 const SizedBox(height: 16),
                 Text(
                   user.pin,
@@ -255,10 +278,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'Save this PIN! You will use it to login every day.',
+                Text(
+                  tr(
+                    'Save this PIN! You will use it to login every day.',
+                    '¡Guarda este PIN! Lo usarás para entrar todos los días.',
+                  ),
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey),
+                  style: const TextStyle(color: Colors.grey),
                 ),
               ],
             ),
@@ -272,7 +298,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   backgroundColor: Colors.black87,
                   foregroundColor: Colors.white,
                 ),
-                child: const Text('Got it! Go to Login'),
+                child: Text(
+                  tr('Got it! Go to Login', '¡Listo! Ir a Iniciar Sesión'),
+                ),
               ),
             ],
           ),
@@ -281,7 +309,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(response['message'] ?? 'Sign up failed!'),
+              content: Text(
+                response['message'] ??
+                    tr('Sign up failed!', '¡Error al crear la cuenta!'),
+              ),
               backgroundColor: Colors.red,
             ),
           );

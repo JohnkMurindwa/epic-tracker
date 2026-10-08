@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../services/auth_service.dart';
+import '../../services/app_strings.dart';
+import '../../widgets/language_toggle.dart';
 import '../../models/user_model.dart';
 import 'signup_screen.dart';
 import '../installer/installer_dashboard.dart';
@@ -25,6 +27,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppStrings.watch(context);
     // Web: centered card layout. Mobile: full screen.
     if (kIsWeb) return _buildWebLogin();
     return _buildMobileLogin();
@@ -33,178 +36,191 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildWebLogin() {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
-      body: Center(
-        child: SingleChildScrollView(
-          child: Container(
-            width: 420,
-            margin: const EdgeInsets.symmetric(vertical: 40),
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 20,
-                  offset: const Offset(0, 4),
+      body: Stack(
+        children: [
+          Center(
+            child: SingleChildScrollView(
+              child: Container(
+                width: 420,
+                margin: const EdgeInsets.symmetric(vertical: 40),
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 20,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Logo
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 24,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        'EPIC',
-                        style: GoogleFonts.bodoniModa(
-                          fontSize: 48,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFFB22222),
-                          letterSpacing: 5,
-                          height: 1.0,
-                        ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Logo
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 24,
                       ),
-                      const SizedBox(height: 4),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
                         children: [
                           Text(
-                            'c e r a m i c',
+                            'EPIC',
                             style: GoogleFonts.bodoniModa(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w400,
-                              color: Colors.grey[500],
-                              letterSpacing: 2.5,
-                            ),
-                          ),
-                          Text(
-                            '+',
-                            style: GoogleFonts.bodoniModa(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 48,
+                              fontWeight: FontWeight.w700,
                               color: const Color(0xFFB22222),
-                              letterSpacing: 2.5,
+                              letterSpacing: 5,
+                              height: 1.0,
                             ),
                           ),
-                          Text(
-                            's t o n e',
-                            style: GoogleFonts.bodoniModa(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w400,
-                              color: Colors.grey[500],
-                              letterSpacing: 2.5,
-                            ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'c e r a m i c',
+                                style: GoogleFonts.bodoniModa(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w400,
+                                  color: Colors.grey[500],
+                                  letterSpacing: 2.5,
+                                ),
+                              ),
+                              Text(
+                                '+',
+                                style: GoogleFonts.bodoniModa(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFFB22222),
+                                  letterSpacing: 2.5,
+                                ),
+                              ),
+                              Text(
+                                's t o n e',
+                                style: GoogleFonts.bodoniModa(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w400,
+                                  color: Colors.grey[500],
+                                  letterSpacing: 2.5,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Admin Dashboard',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Sign in to continue',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-                ),
-                const SizedBox(height: 28),
-
-                // Email
-                TextField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: const Icon(Icons.email_outlined, size: 20),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(
+                    const SizedBox(height: 24),
+                    Text(
+                      tr('Admin Dashboard', 'Panel de Administración'),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
                         color: Colors.black87,
-                        width: 2,
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 14),
+                    const SizedBox(height: 4),
+                    Text(
+                      tr('Sign in to continue', 'Inicia sesión para continuar'),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                    ),
+                    const SizedBox(height: 28),
 
-                // Password
-                TextField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outlined, size: 20),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(
-                        color: Colors.black87,
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Sign In
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _login,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black87,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text(
-                            'Sign In',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
+                    // Email
+                    TextField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: InputDecoration(
+                        labelText: tr('Email', 'Correo electrónico'),
+                        prefixIcon: const Icon(Icons.email_outlined, size: 20),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(
+                            color: Colors.black87,
+                            width: 2,
                           ),
-                  ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Password
+                    TextField(
+                      controller: _passwordController,
+                      obscureText: true,
+                      decoration: InputDecoration(
+                        labelText: tr('Password', 'Contraseña'),
+                        prefixIcon: const Icon(Icons.lock_outlined, size: 20),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(
+                            color: Colors.black87,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Sign In
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _login,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black87,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Text(
+                                tr('Sign In', 'Iniciar Sesión'),
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+          const SafeArea(
+            child: Align(
+              alignment: Alignment.topRight,
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: LanguageToggle(),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -213,290 +229,303 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 80, 24, 24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              // Logo
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 28,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      'EPIC',
-                      style: GoogleFonts.bodoniModa(
-                        fontSize: 58,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFFB22222),
-                        letterSpacing: 5,
-                        height: 1.0,
-                      ),
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 80, 24, 24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  // Logo
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 28,
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
                       children: [
                         Text(
-                          'c e r a m i c',
+                          'EPIC',
                           style: GoogleFonts.bodoniModa(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
-                            color: Colors.grey[500],
-                            letterSpacing: 3,
-                          ),
-                        ),
-                        Text(
-                          '+',
-                          style: GoogleFonts.bodoniModa(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 58,
+                            fontWeight: FontWeight.w700,
                             color: const Color(0xFFB22222),
-                            letterSpacing: 3,
+                            letterSpacing: 5,
+                            height: 1.0,
                           ),
                         ),
-                        Text(
-                          's t o n e',
-                          style: GoogleFonts.bodoniModa(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
-                            color: Colors.grey[500],
-                            letterSpacing: 3,
-                          ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'c e r a m i c',
+                              style: GoogleFonts.bodoniModa(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.grey[500],
+                                letterSpacing: 3,
+                              ),
+                            ),
+                            Text(
+                              '+',
+                              style: GoogleFonts.bodoniModa(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFFB22222),
+                                letterSpacing: 3,
+                              ),
+                            ),
+                            Text(
+                              's t o n e',
+                              style: GoogleFonts.bodoniModa(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.grey[500],
+                                letterSpacing: 3,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Installation Tracker',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Sign in to continue',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.grey[400],
-                ),
-              ),
-              const SizedBox(height: 28),
-
-              // Toggle between installer and admin login (mobile only)
-              if (!kIsWeb)
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () =>
-                              setState(() => _isInstallerLogin = false),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
-                              color: !_isInstallerLogin
-                                  ? Colors.black87
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              'Supervisor',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: !_isInstallerLogin
-                                    ? Colors.white
-                                    : Colors.grey[500],
-                                fontWeight: FontWeight.w500,
+                  const SizedBox(height: 16),
+                  Text(
+                    tr('Installation Tracker', 'Control de Instalaciones'),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    tr('Sign in to continue', 'Inicia sesión para continuar'),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.grey[400],
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+
+                  // Toggle between installer and admin login (mobile only)
+                  if (!kIsWeb)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () =>
+                                  setState(() => _isInstallerLogin = false),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: !_isInstallerLogin
+                                      ? Colors.black87
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  AppStrings.role('supervisor'),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: !_isInstallerLogin
+                                        ? Colors.white
+                                        : Colors.grey[500],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _isInstallerLogin = true),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
-                              color: _isInstallerLogin
-                                  ? Colors.black87
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              'Installer',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: _isInstallerLogin
-                                    ? Colors.white
-                                    : Colors.grey[500],
-                                fontWeight: FontWeight.w500,
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () =>
+                                  setState(() => _isInstallerLogin = true),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _isInstallerLogin
+                                      ? Colors.black87
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  AppStrings.role('installer'),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: _isInstallerLogin
+                                        ? Colors.white
+                                        : Colors.grey[500],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
                               ),
                             ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 32),
+
+                  // Login fields
+                  if (!_isInstallerLogin || kIsWeb) ...[
+                    // Email field
+                    TextField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: InputDecoration(
+                        labelText: tr('Email', 'Correo electrónico'),
+                        prefixIcon: const Icon(Icons.email_outlined),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Colors.black87,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Password field
+                    TextField(
+                      controller: _passwordController,
+                      obscureText: true,
+                      decoration: InputDecoration(
+                        labelText: tr('Password', 'Contraseña'),
+                        prefixIcon: const Icon(Icons.lock_outlined),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Colors.black87,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ] else if (!kIsWeb) ...[
+                    // PIN field
+                    TextField(
+                      controller: _pinController,
+                      keyboardType: TextInputType.number,
+                      maxLength: 5,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 16,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: tr(
+                          'Enter 5 Digit PIN',
+                          'Ingresa tu PIN de 5 dígitos',
+                        ),
+                        counterText: '',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Colors.black87,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 24),
+
+                  // Login button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _login,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black87,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(26),
+                        ),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              tr('Sign In', 'Iniciar Sesión'),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        tr("Don't have an account? ", '¿No tienes cuenta? '),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SignUpScreen(),
+                          ),
+                        ),
+                        child: Text(
+                          tr('Sign Up', 'Regístrate'),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Colors.black87,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                     ],
                   ),
-                ),
-              const SizedBox(height: 32),
-
-              // Login fields
-              if (!_isInstallerLogin || kIsWeb) ...[
-                // Email field
-                TextField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: const Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: Colors.black87,
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Password field
-                TextField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: Colors.black87,
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                ),
-              ] else if (!kIsWeb) ...[
-                // PIN field
-                TextField(
-                  controller: _pinController,
-                  keyboardType: TextInputType.number,
-                  maxLength: 5,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 16,
-                  ),
-                  decoration: InputDecoration(
-                    labelText: 'Enter 5 Digit PIN',
-                    counterText: '',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: Colors.black87,
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 24),
-
-              // Login button
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _login,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black87,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(26),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text(
-                          'Sign In',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "Don't have an account? ",
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.grey[500],
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SignUpScreen(),
-                      ),
-                    ),
-                    child: const Text(
-                      'Sign Up',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.black87,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
                 ],
               ),
-            ],
-          ),
+            ),
+            const Positioned(top: 8, right: 16, child: LanguageToggle()),
+          ],
         ),
       ),
     );
@@ -509,6 +538,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (_isInstallerLogin) {
         UserModel? user = await _authService.signInWithPin(_pinController.text);
 
+        if (user != null) await AppStrings.onSignIn(user.id, user.language);
         if (user != null && mounted) {
           Widget dashboard;
           if (user.role == 'foreman') {
@@ -523,8 +553,8 @@ class _LoginScreenState extends State<LoginScreen> {
         } else {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Invalid PIN!'),
+              SnackBar(
+                content: Text(AppStrings.invalidPin),
                 backgroundColor: Colors.red,
               ),
             );
@@ -538,6 +568,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (response['success'] == true && mounted) {
           UserModel user = response['user'] as UserModel;
+          await AppStrings.onSignIn(user.id, user.language);
+          if (!mounted) return;
           Widget dashboard;
           if (kIsWeb) {
             dashboard = AdminDashboard(user: user);
@@ -555,7 +587,8 @@ class _LoginScreenState extends State<LoginScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  response['message'] as String? ?? 'Login failed!',
+                  response['message'] as String? ??
+                      tr('Login failed!', '¡Error al iniciar sesión!'),
                 ),
                 backgroundColor: Colors.red,
               ),

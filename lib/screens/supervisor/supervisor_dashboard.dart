@@ -5,6 +5,9 @@ import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import '../auth/login_screen.dart';
 import '../../widgets/epic_week_header.dart';
+import '../../widgets/offline_banner.dart';
+import '../../widgets/language_toggle.dart';
+import '../../services/app_strings.dart';
 
 class SupervisorDashboard extends StatefulWidget {
   final UserModel user;
@@ -37,16 +40,21 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
 
   @override
   Widget build(BuildContext context) {
+    AppStrings.watch(context);
     return Scaffold(
       backgroundColor: Colors.white,
       body: Column(
         children: [
+          const OfflineBanner(),
           EpicWeekHeader(
             userName: widget.user.name,
-            userRole: widget.user.role == 'foreman' ? 'Foreman' : 'Supervisor',
+            userRole: AppStrings.role(
+              widget.user.role == 'foreman' ? 'foreman' : 'supervisor',
+            ),
             onDaySelected: (day) {
               setState(() => _selectedDay = day);
             },
+            onAvatarTap: _showProfileSheet,
           ),
           Container(
             color: Colors.white,
@@ -56,9 +64,9 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
               labelColor: Colors.black87,
               unselectedLabelColor: Colors.grey[500],
               indicatorWeight: 2.5,
-              tabs: const [
-                Tab(text: 'My Crew'),
-                Tab(text: 'Job Sites'),
+              tabs: [
+                Tab(text: tr('My Crew', 'Mi Equipo')),
+                Tab(text: tr('Job Sites', 'Obras')),
               ],
             ),
           ),
@@ -83,14 +91,12 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
       children: [
         _buildTodayStats(),
         const SizedBox(height: 20),
-        const Text(
-          'Installer Activity',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+        Text(
+          tr('Installer Activity', 'Actividad de Instaladores'),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 10),
         _buildInstallerFeed(),
-        const SizedBox(height: 40),
-        _buildSignOutButton(),
         const SizedBox(height: 24),
       ],
     );
@@ -145,9 +151,9 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Today\'s Overview',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
+              Text(
+                tr('Today\'s Overview', 'Resumen de Hoy'),
+                style: const TextStyle(color: Colors.white70, fontSize: 13),
               ),
               const SizedBox(height: 12),
               Row(
@@ -155,17 +161,17 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                 children: [
                   _buildOverviewStat(
                     '$activeNow',
-                    'Working',
+                    tr('Working', 'Trabajando'),
                     Icons.engineering,
                   ),
                   _buildOverviewStat(
                     '${logs.length}',
-                    'Logged In',
+                    tr('Logged In', 'Conectados'),
                     Icons.people,
                   ),
                   _buildOverviewStat(
                     '$doneToday',
-                    'Done',
+                    tr('Done', 'Terminaron'),
                     Icons.check_circle_outline,
                   ),
                 ],
@@ -184,7 +190,10 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                     const Icon(Icons.schedule, color: Colors.white70, size: 18),
                     const SizedBox(width: 8),
                     Text(
-                      '${totalHours.toStringAsFixed(1)} hours logged today',
+                      tr(
+                        '${totalHours.toStringAsFixed(1)} hours logged today',
+                        '${totalHours.toStringAsFixed(1)} horas registradas hoy',
+                      ),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 15,
@@ -229,6 +238,29 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
       _selectedDay.day,
     );
 
+    // Foremen: wrap with a projects query to get assigned project IDs
+    if (widget.user.role == 'foreman') {
+      return StreamBuilder<QuerySnapshot>(
+        stream: _db
+            .collection('projects')
+            .where('assignedForemen', arrayContains: widget.user.id)
+            .snapshots(),
+        builder: (context, projectSnapshot) {
+          final assignedProjectIds = (projectSnapshot.data?.docs ?? [])
+              .map((doc) => doc.id)
+              .toSet();
+          return _buildInstallerFeedBody(todayStart, assignedProjectIds);
+        },
+      );
+    }
+
+    return _buildInstallerFeedBody(todayStart, null);
+  }
+
+  Widget _buildInstallerFeedBody(
+    DateTime todayStart,
+    Set<String>? foremanProjectIds,
+  ) {
     return StreamBuilder<QuerySnapshot>(
       stream: _db
           .collection('daily_logs')
@@ -254,7 +286,10 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                 Icon(Icons.people_outline, size: 56, color: Colors.grey[300]),
                 const SizedBox(height: 12),
                 Text(
-                  'No installers clocked in yet',
+                  tr(
+                    'No installers clocked in yet',
+                    'Ningún instalador ha registrado entrada',
+                  ),
                   style: TextStyle(color: Colors.grey[500], fontSize: 15),
                 ),
               ],
@@ -269,19 +304,31 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
 
         for (final doc in logs) {
           final data = doc.data() as Map<String, dynamic>;
-          final name = data['installer_name'] ?? 'Unknown';
+          final name = data['installer_name'] ?? tr('Unknown', 'Desconocido');
           final role = data['installer_role'] ?? '';
           final entries = List<Map<String, dynamic>>.from(
             data['time_entries'] ?? [],
           );
 
           for (final entry in entries) {
+            // Foreman filter: skip entries from projects not assigned to this foreman
+            if (foremanProjectIds != null) {
+              final entryProjectId = entry['projectId'] as String?;
+              if (entryProjectId == null ||
+                  !foremanProjectIds.contains(entryProjectId)) {
+                continue;
+              }
+            }
+
             final projectName =
-                entry['projectName'] as String? ?? 'Unknown Site';
-            final areaName = entry['areaName'] as String? ?? 'Unknown Area';
+                entry['projectName'] as String? ??
+                tr('Unknown Site', 'Obra desconocida');
+            final areaName =
+                entry['areaName'] as String? ??
+                tr('Unknown Area', 'Área desconocida');
 
             // Look up the level from areas collectio
-            String levelName = 'Unassigned';
+            String levelName = tr('Unassigned', 'Sin nivel');
             // We'll resolve level from the entry or fallback
             if (entry['levelName'] != null) {
               levelName = entry['levelName'] as String;
@@ -310,7 +357,10 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                 Icon(Icons.people_outline, size: 56, color: Colors.grey[300]),
                 const SizedBox(height: 12),
                 Text(
-                  'Installers logged in — no area activity yet',
+                  tr(
+                    'Installers logged in — no area activity yet',
+                    'Instaladores conectados — aún sin actividad en áreas',
+                  ),
                   style: TextStyle(color: Colors.grey[500], fontSize: 15),
                 ),
               ],
@@ -369,7 +419,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                     ),
                   ),
                   subtitle: Text(
-                    '${levels.length} ${levels.length == 1 ? 'level' : 'levels'} \u2022 $totalWorkers ${totalWorkers == 1 ? 'worker' : 'workers'}',
+                    '${_count(levels.length, tr('level', 'nivel'), tr('levels', 'niveles'))} \u2022 ${_workersLabel(totalWorkers)}',
                     style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                   ),
                   children: [
@@ -415,7 +465,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                               ),
                             ),
                             subtitle: Text(
-                              '${areas.length} ${areas.length == 1 ? 'area' : 'areas'} \u2022 $levelWorkers ${levelWorkers == 1 ? 'worker' : 'workers'}',
+                              '${_count(areas.length, tr('area', 'área'), tr('areas', 'áreas'))} \u2022 ${_workersLabel(levelWorkers)}',
                               style: TextStyle(
                                 fontSize: 11,
                                 color: Colors.grey[500],
@@ -466,7 +516,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                                         ),
                                       ),
                                       subtitle: Text(
-                                        '${workers.length} ${workers.length == 1 ? 'worker' : 'workers'}${activeCount > 0 ? ' \u2022 $activeCount active' : ''}',
+                                        '${_workersLabel(workers.length)}${activeCount > 0 ? ' \u2022 ${tr('$activeCount active', '$activeCount activos')}' : ''}',
                                         style: TextStyle(
                                           fontSize: 11,
                                           color: Colors.grey[500],
@@ -475,8 +525,9 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                                       children: [
                                         ...workers.map((w) {
                                           final wName = w['name'] as String;
-                                          final wRole = (w['role'] as String)
-                                              .replaceAll('_', ' ');
+                                          final wRole = _roleLabel(
+                                            w['role'] as String,
+                                          );
                                           final clockIn =
                                               (w['clockIn'] as Timestamp?)
                                                   ?.toDate();
@@ -574,14 +625,20 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                                                                 4,
                                                               ),
                                                         ),
-                                                        child: const Text(
-                                                          'Active',
-                                                          style: TextStyle(
-                                                            fontSize: 10,
-                                                            color: Colors.green,
-                                                            fontWeight:
-                                                                FontWeight.w600,
+                                                        child: Text(
+                                                          tr(
+                                                            'Active',
+                                                            'Activo',
                                                           ),
+                                                          style:
+                                                              const TextStyle(
+                                                                fontSize: 10,
+                                                                color: Colors
+                                                                    .green,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                              ),
                                                         ),
                                                       )
                                                     else
@@ -598,7 +655,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                                                 ),
                                                 const SizedBox(height: 4),
                                                 Text(
-                                                  '${clockIn != null ? _formatTime(clockIn) : '--'} \u2013 ${clockOut != null ? _formatTime(clockOut) : 'now'}',
+                                                  '${clockIn != null ? _formatTime(clockIn) : '--'} \u2013 ${clockOut != null ? _formatTime(clockOut) : tr('now', 'ahora')}',
                                                   style: TextStyle(
                                                     fontSize: 11,
                                                     color: Colors.grey[500],
@@ -612,7 +669,9 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                                                           top: 3,
                                                         ),
                                                     child: Text(
-                                                      description,
+                                                      AppStrings.workDescription(
+                                                        description,
+                                                      ),
                                                       style: TextStyle(
                                                         fontSize: 11,
                                                         color: Colors.grey[600],
@@ -714,7 +773,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                     Icon(Icons.construction, size: 64, color: Colors.grey[300]),
                     const SizedBox(height: 12),
                     Text(
-                      'No job sites yet',
+                      tr('No job sites yet', 'Aún no hay obras'),
                       style: TextStyle(fontSize: 16, color: Colors.grey[500]),
                     ),
                   ],
@@ -755,7 +814,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                         ),
                       ),
                       title: Text(
-                        'Completed',
+                        tr('Completed', 'Completadas'),
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -763,7 +822,11 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                         ),
                       ),
                       subtitle: Text(
-                        '${completedProjects.length} job ${completedProjects.length == 1 ? 'site' : 'sites'}',
+                        _count(
+                          completedProjects.length,
+                          tr('job site', 'obra'),
+                          tr('job sites', 'obras'),
+                        ),
                         style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                       ),
                       children: completedProjects.map((doc) {
@@ -776,8 +839,6 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
               ],
             ],
 
-            const SizedBox(height: 40),
-            _buildSignOutButton(),
             const SizedBox(height: 24),
           ],
         );
@@ -786,7 +847,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
   }
 
   Widget _buildJobSiteCard(String projectId, Map<String, dynamic> data) {
-    final name = data['name'] ?? 'Unknown';
+    final name = data['name'] ?? tr('Unknown', 'Desconocido');
     final location = data['location'] ?? '';
     final status = data['status'] ?? 'active';
     final isActive = status == 'active';
@@ -819,7 +880,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
           subtitle: Text(
-            location.isNotEmpty ? location : 'No location',
+            location.isNotEmpty ? location : tr('No location', 'Sin ubicación'),
             style: TextStyle(fontSize: 12, color: Colors.grey[500]),
           ),
           trailing: GestureDetector(
@@ -836,7 +897,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                status.toUpperCase(),
+                _statusLabel(status),
                 style: TextStyle(
                   color: isActive ? Colors.black87 : Colors.grey[600],
                   fontSize: 10,
@@ -869,7 +930,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'No areas yet',
+                          tr('No areas yet', 'Aún no hay áreas'),
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.grey[400],
@@ -895,9 +956,9 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                     onPressed: () =>
                         _showAssignWorkersToSiteDialog(projectId, name),
                     icon: const Icon(Icons.group_add, size: 16),
-                    label: const Text(
-                      'Assign Workers',
-                      style: TextStyle(fontSize: 13),
+                    label: Text(
+                      tr('Assign Workers', 'Asignar Trabajadores'),
+                      style: const TextStyle(fontSize: 13),
                     ),
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Colors.black87),
@@ -911,9 +972,9 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                   OutlinedButton.icon(
                     onPressed: () => _showAssignForemanDialog(projectId, name),
                     icon: const Icon(Icons.person_pin, size: 16),
-                    label: const Text(
-                      'Assign Foreman',
-                      style: TextStyle(fontSize: 13),
+                    label: Text(
+                      tr('Assign Foreman', 'Asignar Capataz'),
+                      style: const TextStyle(fontSize: 13),
                     ),
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Colors.black87),
@@ -941,7 +1002,8 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
     final Map<String, List<QueryDocumentSnapshot>> levelGroups = {};
     for (final area in areas) {
       final data = area.data() as Map<String, dynamic>;
-      final level = data['levelName'] as String? ?? 'Unassigned';
+      final level =
+          data['levelName'] as String? ?? tr('Unassigned', 'Sin nivel');
       levelGroups.putIfAbsent(level, () => []).add(area);
     }
 
@@ -970,7 +1032,11 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
               ),
             ),
             subtitle: Text(
-              '${levelAreas.length} ${levelAreas.length == 1 ? 'area' : 'areas'}',
+              _count(
+                levelAreas.length,
+                tr('area', 'área'),
+                tr('areas', 'áreas'),
+              ),
               style: TextStyle(fontSize: 11, color: Colors.grey[500]),
             ),
             children: levelAreas.map((areaDoc) {
@@ -1040,8 +1106,11 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                               const SizedBox(height: 2),
                               Text(
                                 people.isEmpty
-                                    ? 'No one assigned'
-                                    : '${people.length} ${people.length == 1 ? 'person' : 'people'} assigned',
+                                    ? tr('No one assigned', 'Nadie asignado')
+                                    : tr(
+                                        '${people.length} ${people.length == 1 ? 'person' : 'people'} assigned',
+                                        '${people.length} ${people.length == 1 ? 'persona asignada' : 'personas asignadas'}',
+                                      ),
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: Colors.grey[500],
@@ -1064,8 +1133,11 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                           ),
                           child: Text(
                             isDone
-                                ? 'Done'
-                                : '${(est - consumed).toStringAsFixed(1)} days',
+                                ? tr('Done', 'Terminado')
+                                : tr(
+                                    '${(est - consumed).toStringAsFixed(1)} days',
+                                    '${(est - consumed).toStringAsFixed(1)} días',
+                                  ),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -1201,7 +1273,10 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                 ),
               ),
               Text(
-                '${crewDaysLeft.toStringAsFixed(1)} crew days left • ${totalCrewDays.toStringAsFixed(0)} est.',
+                tr(
+                  '${crewDaysLeft.toStringAsFixed(1)} crew days left • ${totalCrewDays.toStringAsFixed(0)} est.',
+                  '${crewDaysLeft.toStringAsFixed(1)} días de equipo restantes • ${totalCrewDays.toStringAsFixed(0)} est.',
+                ),
                 style: TextStyle(fontSize: 11, color: Colors.grey[600]),
               ),
             ],
@@ -1228,14 +1303,20 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
               Icon(Icons.person, size: 14, color: Colors.grey[500]),
               const SizedBox(width: 4),
               Text(
-                '${assignedPeople.length} people',
+                tr(
+                  '${assignedPeople.length} people',
+                  '${assignedPeople.length} personas',
+                ),
                 style: TextStyle(fontSize: 11, color: Colors.grey[600]),
               ),
               const SizedBox(width: 12),
               Icon(Icons.calendar_today, size: 12, color: Colors.grey[500]),
               const SizedBox(width: 4),
               Text(
-                '~${crewDaysLeft.ceil()} days to go',
+                tr(
+                  '~${crewDaysLeft.ceil()} days to go',
+                  '~${crewDaysLeft.ceil()} días restantes',
+                ),
                 style: TextStyle(fontSize: 11, color: Colors.grey[600]),
               ),
             ],
@@ -1294,14 +1375,18 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                     color: Colors.black87,
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.person_add, size: 12, color: Colors.white),
-                      SizedBox(width: 4),
+                      const Icon(
+                        Icons.person_add,
+                        size: 12,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 4),
                       Text(
-                        'Assign',
-                        style: TextStyle(
+                        tr('Assign', 'Asignar'),
+                        style: const TextStyle(
                           fontSize: 11,
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
@@ -1324,7 +1409,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    'Edit',
+                    tr('Edit', 'Editar'),
                     style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                   ),
                 ),
@@ -1361,25 +1446,31 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
               );
 
               return AlertDialog(
-                title: Text('Assign Workers to $projectName'),
+                title: Text(
+                  tr(
+                    'Assign Workers to $projectName',
+                    'Asignar Trabajadores a $projectName',
+                  ),
+                ),
                 content: SizedBox(
                   width: 350,
                   height: 400,
                   child: workers.isEmpty
-                      ? const Center(
+                      ? Center(
                           child: Text(
-                            'No workers registered yet',
-                            style: TextStyle(color: Colors.grey),
+                            tr(
+                              'No workers registered yet',
+                              'Aún no hay trabajadores registrados',
+                            ),
+                            style: const TextStyle(color: Colors.grey),
                           ),
                         )
                       : ListView(
                           children: workers.map((doc) {
                             final data = doc.data() as Map<String, dynamic>;
-                            final name = data['name'] ?? 'Unknown';
-                            final role = (data['role'] ?? '').replaceAll(
-                              '_',
-                              ' ',
-                            );
+                            final name =
+                                data['name'] ?? tr('Unknown', 'Desconocido');
+                            final role = _roleLabel(data['role'] ?? '');
                             final isAssigned = assignedWorkers.contains(doc.id);
 
                             return ListTile(
@@ -1441,7 +1532,10 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                 ),
                 actions: [
                   Text(
-                    '${assignedWorkers.length} assigned',
+                    tr(
+                      '${assignedWorkers.length} assigned',
+                      '${assignedWorkers.length} asignados',
+                    ),
                     style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                   ),
                   const SizedBox(width: 8),
@@ -1451,7 +1545,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                       backgroundColor: Colors.black87,
                       foregroundColor: Colors.white,
                     ),
-                    child: const Text('Done'),
+                    child: Text(tr('Done', 'Listo')),
                   ),
                 ],
               );
@@ -1483,22 +1577,31 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
               );
 
               return AlertDialog(
-                title: Text('Assign Foreman to $projectName'),
+                title: Text(
+                  tr(
+                    'Assign Foreman to $projectName',
+                    'Asignar Capataz a $projectName',
+                  ),
+                ),
                 content: SizedBox(
                   width: 300,
                   child: foremen.isEmpty
-                      ? const Padding(
-                          padding: EdgeInsets.all(16),
+                      ? Padding(
+                          padding: const EdgeInsets.all(16),
                           child: Text(
-                            'No foremen registered yet',
-                            style: TextStyle(color: Colors.grey),
+                            tr(
+                              'No foremen registered yet',
+                              'Aún no hay capataces registrados',
+                            ),
+                            style: const TextStyle(color: Colors.grey),
                           ),
                         )
                       : Column(
                           mainAxisSize: MainAxisSize.min,
                           children: foremen.map((doc) {
                             final data = doc.data() as Map<String, dynamic>;
-                            final name = data['name'] ?? 'Unknown';
+                            final name =
+                                data['name'] ?? tr('Unknown', 'Desconocido');
                             final isAssigned = assignedForemen.contains(doc.id);
 
                             return ListTile(
@@ -1558,7 +1661,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                       backgroundColor: Colors.black87,
                       foregroundColor: Colors.white,
                     ),
-                    child: const Text('Done'),
+                    child: Text(tr('Done', 'Listo')),
                   ),
                 ],
               );
@@ -1578,7 +1681,10 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Edit Area', style: TextStyle(color: Colors.black87)),
+        title: Text(
+          tr('Edit Area', 'Editar Área'),
+          style: const TextStyle(color: Colors.black87),
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1586,7 +1692,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
               TextField(
                 controller: nameCtrl,
                 decoration: InputDecoration(
-                  labelText: 'Area Name',
+                  labelText: tr('Area Name', 'Nombre del Área'),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -1597,7 +1703,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                 controller: crewDaysCtrl,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
-                  labelText: 'Total Crew Days',
+                  labelText: tr('Total Crew Days', 'Días de Equipo Totales'),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -1613,16 +1719,22 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
               showDialog(
                 context: dialogContext,
                 builder: (confirmContext) => AlertDialog(
-                  title: const Text('Delete Area?'),
+                  title: Text(tr('Delete Area?', '¿Eliminar Área?')),
                   content: Text(
-                    'This will permanently remove "${data['name']}". '
-                    'Past work logs are kept, but assigned people will lose '
-                    'this area. This cannot be undone.',
+                    tr(
+                      'This will permanently remove "${data['name']}". '
+                          'Past work logs are kept, but assigned people will lose '
+                          'this area. This cannot be undone.',
+                      'Esto eliminará permanentemente "${data['name']}". '
+                          'Los registros de trabajo anteriores se conservan, pero '
+                          'las personas asignadas perderán esta área. Esto no se '
+                          'puede deshacer.',
+                    ),
                   ),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(confirmContext),
-                      child: const Text('Cancel'),
+                      child: Text(AppStrings.cancel),
                     ),
                     ElevatedButton(
                       onPressed: () async {
@@ -1636,18 +1748,21 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
                       ),
-                      child: const Text('Delete'),
+                      child: Text(AppStrings.delete),
                     ),
                   ],
                 ),
               );
             },
             icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
-            label: const Text('Delete', style: TextStyle(color: Colors.red)),
+            label: Text(
+              AppStrings.delete,
+              style: const TextStyle(color: Colors.red),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: Text(AppStrings.cancel),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -1663,7 +1778,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
               backgroundColor: Colors.black87,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Save'),
+            child: Text(AppStrings.save),
           ),
         ],
       ),
@@ -1690,7 +1805,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
 
             return AlertDialog(
               title: Text(
-                'Assign to $areaName',
+                tr('Assign to $areaName', 'Asignar a $areaName'),
                 style: const TextStyle(color: Colors.black87, fontSize: 16),
               ),
               content: SizedBox(
@@ -1719,8 +1834,14 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                         padding: const EdgeInsets.all(16),
                         child: Text(
                           widget.user.role == 'foreman'
-                              ? 'No workers assigned to this site yet.\nAsk the Supervisor to assign workers.'
-                              : 'No installers found',
+                              ? tr(
+                                  'No workers assigned to this site yet.\nAsk the Supervisor to assign workers.',
+                                  'Aún no hay trabajadores asignados a esta obra.\nPídele al Supervisor que asigne trabajadores.',
+                                )
+                              : tr(
+                                  'No installers found',
+                                  'No se encontraron instaladores',
+                                ),
                           style: TextStyle(color: Colors.grey[500]),
                           textAlign: TextAlign.center,
                         ),
@@ -1736,7 +1857,9 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                             final userData =
                                 users[index].data() as Map<String, dynamic>;
                             final userId = users[index].id;
-                            final userName = userData['name'] ?? 'Unknown';
+                            final userName =
+                                userData['name'] ??
+                                tr('Unknown', 'Desconocido');
                             final userRole = userData['role'] ?? '';
                             final isAssigned = currentPeople.contains(userId);
 
@@ -1765,7 +1888,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                                 style: const TextStyle(fontSize: 14),
                               ),
                               subtitle: Text(
-                                userRole.replaceAll('_', ' '),
+                                _roleLabel(userRole),
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: Colors.grey[500],
@@ -1816,7 +1939,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                     backgroundColor: Colors.black87,
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('Done'),
+                  child: Text(tr('Done', 'Listo')),
                 ),
               ],
             );
@@ -1838,11 +1961,11 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
         final data = doc.data();
 
         people.add({
-          'name': data?['name'] ?? 'Unknown',
+          'name': data?['name'] ?? tr('Unknown', 'Desconocido'),
           'role': data?['role'] ?? '',
         });
       } catch (_) {
-        people.add({'name': 'Unknown', 'role': ''});
+        people.add({'name': tr('Unknown', 'Desconocido'), 'role': ''});
       }
     }
     return people;
@@ -1856,39 +1979,183 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
     );
   }
 
-  Widget _buildSignOutButton() {
-    return Center(
-      child: FractionallySizedBox(
-        widthFactor: 0.85,
-        child: GestureDetector(
-          onTap: _logout,
-          child: Container(
-            height: 52,
-            decoration: BoxDecoration(
-              color: Colors.grey[700],
-              borderRadius: BorderRadius.circular(26),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withValues(alpha: 0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+  void _showProfileSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        AppStrings.watch(sheetContext);
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                CircleAvatar(
+                  radius: 32,
+                  backgroundColor: Colors.black87.withValues(alpha: 0.1),
+                  child: Text(
+                    _getInitials(widget.user.name),
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  widget.user.name,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  AppStrings.role(
+                    widget.user.role == 'foreman' ? 'foreman' : 'supervisor',
+                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 16),
+                const LanguageToggle(),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      _logout();
+                    },
+                    icon: const Icon(Icons.logout, size: 18),
+                    label: Text(AppStrings.signOut),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black87,
+                      side: const BorderSide(color: Colors.black54),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      _confirmDeleteAccount();
+                    },
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: Text(AppStrings.deleteAccount),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
-            child: const Center(
-              child: Text(
-                'sign out',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
           ),
-        ),
+        );
+      },
+    );
+  }
+
+  String _getInitials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return name.isNotEmpty ? name[0].toUpperCase() : '?';
+  }
+
+  Future<void> _confirmDeleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(AppStrings.deleteAccountConfirmTitle),
+        content: Text(AppStrings.deleteAccountConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(AppStrings.cancel),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(AppStrings.delete),
+          ),
+        ],
       ),
     );
+
+    if (confirmed == true && mounted) {
+      final result = await _authService.deleteAccount(widget.user.id);
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result['message'] ??
+                  tr(
+                    'Failed to delete account',
+                    'No se pudo eliminar la cuenta',
+                  ),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// "1 worker" / "3 workers" in the current language.
+  String _count(int n, String singular, String plural) =>
+      '$n ${n == 1 ? singular : plural}';
+
+  String _workersLabel(int n) =>
+      _count(n, tr('worker', 'trabajador'), tr('workers', 'trabajadores'));
+
+  /// Display label for a stored role value.
+  String _roleLabel(String role) => AppStrings.role(role);
+
+  /// Display label for a stored project status (never saved back).
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'active':
+        return tr('ACTIVE', 'ACTIVA');
+      case 'completed':
+        return tr('COMPLETED', 'COMPLETADA');
+      default:
+        return status.toUpperCase();
+    }
   }
 
   String _formatTime(DateTime time) {

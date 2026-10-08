@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:excel/excel.dart' as excel_lib;
 import 'dart:typed_data';
+import '../../services/app_strings.dart';
 
 class ExcelImportDialog extends StatefulWidget {
   final String projectId;
@@ -32,6 +33,7 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
 
   @override
   Widget build(BuildContext context) {
+    AppStrings.watch(context);
     return Dialog(
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -62,9 +64,12 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Import Areas from Spreadsheet',
-                          style: TextStyle(
+                        Text(
+                          tr(
+                            'Import Areas from Spreadsheet',
+                            'Importar áreas desde hoja de cálculo',
+                          ),
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
@@ -116,20 +121,23 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
                       },
                       child: Text(
                         _selectedKeys.length == _allKeys.length
-                            ? 'Deselect All'
-                            : 'Select All',
+                            ? tr('Deselect All', 'Quitar todo')
+                            : tr('Select All', 'Seleccionar todo'),
                         style: const TextStyle(fontSize: 13),
                       ),
                     ),
                     const Spacer(),
                     Text(
-                      '${_selectedKeys.length} areas selected',
+                      tr(
+                        '${_selectedKeys.length} areas selected',
+                        '${_selectedKeys.length} áreas seleccionadas',
+                      ),
                       style: TextStyle(fontSize: 13, color: Colors.grey[500]),
                     ),
                     const SizedBox(width: 12),
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel'),
+                      child: Text(AppStrings.cancel),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
@@ -152,7 +160,12 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
                                 strokeWidth: 2,
                               ),
                             )
-                          : Text('Import ${_selectedKeys.length} Areas'),
+                          : Text(
+                              tr(
+                                'Import ${_selectedKeys.length} Areas',
+                                'Importar ${_selectedKeys.length} áreas',
+                              ),
+                            ),
                     ),
                   ],
                 ),
@@ -171,13 +184,19 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
         children: [
           Icon(Icons.description, size: 64, color: Colors.grey[300]),
           const SizedBox(height: 16),
-          const Text(
-            'Upload your Daily Log spreadsheet',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          Text(
+            tr(
+              'Upload your Daily Log spreadsheet',
+              'Sube tu hoja de cálculo del registro diario',
+            ),
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 6),
           Text(
-            'The app will read the areas, levels, and crew days from your .xlsx file',
+            tr(
+              'The app will read the areas, levels, and crew days from your .xlsx file',
+              'La app leerá las áreas, niveles y días de equipo de tu archivo .xlsx',
+            ),
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13, color: Colors.grey[500]),
           ),
@@ -194,7 +213,11 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
                     ),
                   )
                 : const Icon(Icons.upload_file),
-            label: Text(_isLoading ? 'Reading...' : 'Choose File'),
+            label: Text(
+              _isLoading
+                  ? tr('Reading...', 'Leyendo...')
+                  : tr('Choose File', 'Elegir archivo'),
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.black87,
               foregroundColor: Colors.white,
@@ -248,7 +271,10 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
                 ),
               ),
               subtitle: Text(
-                '$levelSelected of ${areas.length} selected',
+                tr(
+                  '$levelSelected of ${areas.length} selected',
+                  '$levelSelected de ${areas.length} seleccionadas',
+                ),
                 style: TextStyle(fontSize: 11, color: Colors.grey[500]),
               ),
               children: areas.map((area) {
@@ -334,7 +360,10 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              '${area.crewDays.toStringAsFixed(1)} days',
+                              tr(
+                                '${area.crewDays.toStringAsFixed(1)} days',
+                                '${area.crewDays.toStringAsFixed(1)} días',
+                              ),
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -460,7 +489,9 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error reading file: $e'),
+            content: Text(
+              tr('Error reading file: $e', 'Error al leer el archivo: $e'),
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -502,7 +533,10 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Imported $imported areas into ${widget.projectName}',
+              tr(
+                'Imported $imported areas into ${widget.projectName}',
+                'Se importaron $imported áreas en ${widget.projectName}',
+              ),
             ),
             backgroundColor: Colors.black87,
           ),
@@ -513,7 +547,7 @@ class _ExcelImportDialogState extends State<ExcelImportDialog> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Import error: $e'),
+            content: Text(tr('Import error: $e', 'Error al importar: $e')),
             backgroundColor: Colors.red,
           ),
         );

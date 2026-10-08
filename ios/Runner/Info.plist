@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Epic Installation</string>
+	<string>Epic Stone</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -27,9 +27,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Epic Installation needs your location to verify you are on the job site.</string>
+	<string>Epic Stone needs your location to verify you are on the job site.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Epic Installation needs your location to verify you are on the job site when clocking in.</string>
+	<string>Epic Stone needs your location to verify you are on the job site when clocking in.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
