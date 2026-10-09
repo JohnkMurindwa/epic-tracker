@@ -418,8 +418,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           for (final entry in entries) {
             final projectName =
                 entry['projectName'] as String? ?? tr('Unknown', 'Desconocido');
-            final areaName =
-                entry['areaName'] as String? ?? tr('Unknown', 'Desconocido');
+            final areaName = AppStrings.areaLabel(entry);
 
             grouped
                 .putIfAbsent(projectName, () => {})
@@ -1381,7 +1380,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         AppStrings.role('${r['role']}').replaceAll('_', ' '),
                         muted: true,
                       ),
-                      _td('${r['areaName'] ?? ''}'),
+                      _td(AppStrings.areaLabel(r)),
                       _td(
                         '${clockIn != null ? _fmtTime(clockIn) : '--'} – ${clockOut != null ? _fmtTime(clockOut) : tr('now', 'ahora')}',
                         muted: true,

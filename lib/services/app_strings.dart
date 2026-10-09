@@ -149,6 +149,17 @@ class AppStrings {
     }
   }
 
+  // ─── Time entries ─────────────────────────────────────
+  /// Area shown for a time entry. Foremen clock in at a whole job site,
+  /// so their entries have no area.
+  static String areaLabel(Map<String, dynamic> entry) {
+    final name = entry['areaName'] as String?;
+    if (name != null) return name;
+    return entry['areaId'] == null
+        ? tr('Whole site', 'Toda la obra')
+        : tr('Unknown Area', 'Área desconocida');
+  }
+
   // ─── Work items (clock-out descriptions) ──────────────
   /// Work items an installer picks from when clocking out. The English
   /// value is what gets saved to Firestore; never save the Spanish text.

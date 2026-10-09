@@ -10,6 +10,7 @@ import '../../widgets/offline_banner.dart';
 import 'package:intl/intl.dart';
 import '../../services/app_strings.dart';
 import '../../services/notification_service.dart';
+import '../../services/location_service.dart';
 
 class InstallerDashboard extends StatefulWidget {
   final UserModel user;
@@ -1150,7 +1151,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
   Future<void> _clockIn(Map<String, dynamic> area) async {
     setState(() => _isLoading = true);
     try {
-      Position? position = await _getCurrentLocation();
+      Position? position = await getClockInLocation(context);
       if (position == null) {
         // User cancelled the location dialog — just abort silently
         if (mounted) setState(() => _isLoading = false);
@@ -1381,22 +1382,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
   /// This is a PAUSE — the time entry stays open, lunch time is
   /// subtracted from hours when they eventually clock out.
   Future<void> _startLunchFromArea() async {
-    final now = DateTime.now();
-    final todayStart = DateTime(now.year, now.month, now.day);
-
-    final snapshot = await _db
-        .collection('daily_logs')
-        .where('installer_id', isEqualTo: widget.user.id)
-        .where('log_date', isEqualTo: Timestamp.fromDate(todayStart))
-        .limit(1)
-        .get();
-
-    if (snapshot.docs.isNotEmpty) {
-      await snapshot.docs.first.reference.update({
-        'is_on_lunch': true,
-        'lunch_start': Timestamp.now(),
-      });
-    }
+    await _firestoreService.startLunch(userId: widget.user.id);
 
     setState(() {
       _isOnLunch = true;
@@ -1419,22 +1405,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
   }
 
   Future<void> _endLunch() async {
-    final now = DateTime.now();
-    final todayStart = DateTime(now.year, now.month, now.day);
-
-    final snapshot = await _db
-        .collection('daily_logs')
-        .where('installer_id', isEqualTo: widget.user.id)
-        .where('log_date', isEqualTo: Timestamp.fromDate(todayStart))
-        .limit(1)
-        .get();
-
-    if (snapshot.docs.isNotEmpty) {
-      await snapshot.docs.first.reference.update({
-        'is_on_lunch': false,
-        'lunch_end': Timestamp.now(),
-      });
-    }
+    await _firestoreService.endLunch(userId: widget.user.id);
 
     setState(() {
       _isOnLunch = false;
@@ -1457,69 +1428,6 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
   }
 
   /// Returns null if permission denied (caller handles gracefully).
-  Future<Position?> _getCurrentLocation() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      throw tr(
-        'Location services are disabled. Please enable them in Settings.',
-        'La ubicación está desactivada. Actívala en Configuración.',
-      );
-    }
-
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        throw tr(
-          'Location permission denied. Please allow location access to clock in.',
-          'Permiso de ubicación denegado. Permite el acceso a la ubicación para registrar tu entrada.',
-        );
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      if (mounted) {
-        await showDialog(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: Text(
-              tr(
-                'Location Access Required',
-                'Se necesita acceso a la ubicación',
-              ),
-            ),
-            content: Text(
-              tr(
-                'You previously denied location access. Epic Stone needs your location to verify you\'re on the job site.\n\nPlease open Settings and enable location for this app.',
-                'Antes negaste el acceso a la ubicación. Epic Stone necesita tu ubicación para confirmar que estás en la obra.\n\nAbre Configuración y activa la ubicación para esta app.',
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: Text(AppStrings.cancel),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(dialogContext);
-                  Geolocator.openAppSettings();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black87,
-                  foregroundColor: Colors.white,
-                ),
-                child: Text(tr('Open Settings', 'Abrir Configuración')),
-              ),
-            ],
-          ),
-        );
-      }
-      return null; // Silently abort — no error message
-    }
-
-    return await Geolocator.getCurrentPosition();
-  }
-
   Future<void> _logout() async {
     final navigator = Navigator.of(context);
     await _authService.signOut();

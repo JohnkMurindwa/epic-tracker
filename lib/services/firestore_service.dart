@@ -177,15 +177,18 @@ class FirestoreService {
   // ─── DAILY LOGS (area-based time tracking) ────────────────
 
   /// Clock in at a specific area. Creates or updates today's daily log.
+  ///
+  /// Foremen clock in at a whole job site: [areaId] and [areaName] are null,
+  /// and their hours are not counted against any area's crew days.
   Future<void> clockInToArea({
     required String userId,
     required String userName,
     required String userRole,
-    required String areaId,
-    required String areaName,
     required String projectId,
     required String projectName,
     required GeoPoint location,
+    String? areaId,
+    String? areaName,
     String? levelName,
   }) async {
     final now = DateTime.now();
@@ -203,7 +206,7 @@ class FirestoreService {
       'areaName': areaName,
       'projectId': projectId,
       'projectName': projectName,
-      'levelName': levelName ?? 'Unassigned',
+      'levelName': areaId == null ? null : (levelName ?? 'Unassigned'),
       'clockIn': Timestamp.now(),
       'clockOut': null,
       'description': null,
@@ -341,6 +344,36 @@ class FirestoreService {
 
     if (snapshot.docs.isNotEmpty) {
       await snapshot.docs.first.reference.update({'photo_url': photoUrl});
+    }
+  }
+
+  /// Start lunch. A pause: the open time entry stays open, and the lunch
+  /// time is subtracted from hours when the user clocks out.
+  Future<void> startLunch({required String userId}) => _updateTodaysLog(
+    userId,
+    {'is_on_lunch': true, 'lunch_start': Timestamp.now()},
+  );
+
+  Future<void> endLunch({required String userId}) => _updateTodaysLog(userId, {
+    'is_on_lunch': false,
+    'lunch_end': Timestamp.now(),
+  });
+
+  Future<void> _updateTodaysLog(
+    String userId,
+    Map<String, dynamic> data,
+  ) async {
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+
+    final snapshot = await dailyLogs
+        .where('installer_id', isEqualTo: userId)
+        .where('log_date', isEqualTo: Timestamp.fromDate(todayStart))
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      await snapshot.docs.first.reference.update(data);
     }
   }
 

@@ -8,6 +8,7 @@ import '../../widgets/epic_week_header.dart';
 import '../../widgets/offline_banner.dart';
 import '../../widgets/language_toggle.dart';
 import '../../services/app_strings.dart';
+import 'foreman_time_tab.dart';
 
 class SupervisorDashboard extends StatefulWidget {
   final UserModel user;
@@ -26,10 +27,13 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
 
   DateTime _selectedDay = DateTime.now();
 
+  /// Foremen also clock in, so they get a "My Time" tab first.
+  bool get _isForeman => widget.user.role == 'foreman';
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: _isForeman ? 3 : 2, vsync: this);
   }
 
   @override
@@ -65,6 +69,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
               unselectedLabelColor: Colors.grey[500],
               indicatorWeight: 2.5,
               tabs: [
+                if (_isForeman) Tab(text: tr('My Time', 'Mi Tiempo')),
                 Tab(text: tr('My Crew', 'Mi Equipo')),
                 Tab(text: tr('Job Sites', 'Obras')),
               ],
@@ -73,7 +78,11 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: [_buildCrewTab(), _buildJobSitesTab()],
+              children: [
+                if (_isForeman) ForemanTimeTab(user: widget.user),
+                _buildCrewTab(),
+                _buildJobSitesTab(),
+              ],
             ),
           ),
         ],
@@ -323,9 +332,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
             final projectName =
                 entry['projectName'] as String? ??
                 tr('Unknown Site', 'Obra desconocida');
-            final areaName =
-                entry['areaName'] as String? ??
-                tr('Unknown Area', 'Área desconocida');
+            final areaName = AppStrings.areaLabel(entry);
 
             // Look up the level from areas collectio
             String levelName = tr('Unassigned', 'Sin nivel');
@@ -1473,59 +1480,65 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                             final role = _roleLabel(data['role'] ?? '');
                             final isAssigned = assignedWorkers.contains(doc.id);
 
-                            return ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: isAssigned
-                                    ? Colors.black87
-                                    : Colors.grey[200],
-                                radius: 16,
-                                child: Text(
-                                  name.isNotEmpty ? name[0].toUpperCase() : '?',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: isAssigned
-                                        ? Colors.white
-                                        : Colors.grey[600],
+                            return Material(
+                              // Keeps the tap highlight visible inside the dialog.
+                              type: MaterialType.transparency,
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: isAssigned
+                                      ? Colors.black87
+                                      : Colors.grey[200],
+                                  radius: 16,
+                                  child: Text(
+                                    name.isNotEmpty
+                                        ? name[0].toUpperCase()
+                                        : '?',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: isAssigned
+                                          ? Colors.white
+                                          : Colors.grey[600],
+                                    ),
                                   ),
                                 ),
-                              ),
-                              title: Text(
-                                name,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
+                                title: Text(
+                                  name,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
-                              ),
-                              subtitle: Text(
-                                role,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey[500],
+                                subtitle: Text(
+                                  role,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey[500],
+                                  ),
                                 ),
+                                trailing: Icon(
+                                  isAssigned
+                                      ? Icons.check_circle
+                                      : Icons.circle_outlined,
+                                  color: isAssigned
+                                      ? Colors.black87
+                                      : Colors.grey[400],
+                                  size: 22,
+                                ),
+                                onTap: () {
+                                  if (isAssigned) {
+                                    _firestoreService.removeWorkerFromProject(
+                                      projectId: projectId,
+                                      workerId: doc.id,
+                                    );
+                                  } else {
+                                    _firestoreService.assignWorkerToProject(
+                                      projectId: projectId,
+                                      workerId: doc.id,
+                                    );
+                                  }
+                                },
                               ),
-                              trailing: Icon(
-                                isAssigned
-                                    ? Icons.check_circle
-                                    : Icons.circle_outlined,
-                                color: isAssigned
-                                    ? Colors.black87
-                                    : Colors.grey[400],
-                                size: 22,
-                              ),
-                              onTap: () {
-                                if (isAssigned) {
-                                  _firestoreService.removeWorkerFromProject(
-                                    projectId: projectId,
-                                    workerId: doc.id,
-                                  );
-                                } else {
-                                  _firestoreService.assignWorkerToProject(
-                                    projectId: projectId,
-                                    workerId: doc.id,
-                                  );
-                                }
-                              },
                             );
                           }).toList(),
                         ),
@@ -1604,52 +1617,58 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                                 data['name'] ?? tr('Unknown', 'Desconocido');
                             final isAssigned = assignedForemen.contains(doc.id);
 
-                            return ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: isAssigned
-                                    ? Colors.black87
-                                    : Colors.grey[200],
-                                radius: 16,
-                                child: Text(
-                                  name.isNotEmpty ? name[0].toUpperCase() : '?',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: isAssigned
-                                        ? Colors.white
-                                        : Colors.grey[600],
+                            return Material(
+                              // Keeps the tap highlight visible inside the dialog.
+                              type: MaterialType.transparency,
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: isAssigned
+                                      ? Colors.black87
+                                      : Colors.grey[200],
+                                  radius: 16,
+                                  child: Text(
+                                    name.isNotEmpty
+                                        ? name[0].toUpperCase()
+                                        : '?',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: isAssigned
+                                          ? Colors.white
+                                          : Colors.grey[600],
+                                    ),
                                   ),
                                 ),
-                              ),
-                              title: Text(
-                                name,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
+                                title: Text(
+                                  name,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
+                                trailing: Icon(
+                                  isAssigned
+                                      ? Icons.check_circle
+                                      : Icons.circle_outlined,
+                                  color: isAssigned
+                                      ? Colors.black87
+                                      : Colors.grey[400],
+                                  size: 22,
+                                ),
+                                onTap: () {
+                                  if (isAssigned) {
+                                    _firestoreService.removeForemanFromProject(
+                                      projectId: projectId,
+                                      foremanId: doc.id,
+                                    );
+                                  } else {
+                                    _firestoreService.assignForemanToProject(
+                                      projectId: projectId,
+                                      foremanId: doc.id,
+                                    );
+                                  }
+                                },
                               ),
-                              trailing: Icon(
-                                isAssigned
-                                    ? Icons.check_circle
-                                    : Icons.circle_outlined,
-                                color: isAssigned
-                                    ? Colors.black87
-                                    : Colors.grey[400],
-                                size: 22,
-                              ),
-                              onTap: () {
-                                if (isAssigned) {
-                                  _firestoreService.removeForemanFromProject(
-                                    projectId: projectId,
-                                    foremanId: doc.id,
-                                  );
-                                } else {
-                                  _firestoreService.assignForemanToProject(
-                                    projectId: projectId,
-                                    foremanId: doc.id,
-                                  );
-                                }
-                              },
                             );
                           }).toList(),
                         ),
@@ -1863,67 +1882,71 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                             final userRole = userData['role'] ?? '';
                             final isAssigned = currentPeople.contains(userId);
 
-                            return ListTile(
-                              dense: true,
-                              leading: CircleAvatar(
-                                radius: 16,
-                                backgroundColor: isAssigned
-                                    ? Colors.black87
-                                    : Colors.grey[200],
-                                child: Text(
-                                  userName.isNotEmpty
-                                      ? userName[0].toUpperCase()
-                                      : '?',
-                                  style: TextStyle(
-                                    color: isAssigned
-                                        ? Colors.white
-                                        : Colors.grey[600],
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
+                            return Material(
+                              // Keeps the tap highlight visible inside the dialog.
+                              type: MaterialType.transparency,
+                              child: ListTile(
+                                dense: true,
+                                leading: CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor: isAssigned
+                                      ? Colors.black87
+                                      : Colors.grey[200],
+                                  child: Text(
+                                    userName.isNotEmpty
+                                        ? userName[0].toUpperCase()
+                                        : '?',
+                                    style: TextStyle(
+                                      color: isAssigned
+                                          ? Colors.white
+                                          : Colors.grey[600],
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              title: Text(
-                                userName,
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                              subtitle: Text(
-                                _roleLabel(userRole),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey[500],
+                                title: Text(
+                                  userName,
+                                  style: const TextStyle(fontSize: 14),
                                 ),
+                                subtitle: Text(
+                                  _roleLabel(userRole),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey[500],
+                                  ),
+                                ),
+                                trailing: isAssigned
+                                    ? const Icon(
+                                        Icons.check_circle,
+                                        color: Colors.black87,
+                                        size: 22,
+                                      )
+                                    : Icon(
+                                        Icons.add_circle_outline,
+                                        color: Colors.grey[400],
+                                        size: 22,
+                                      ),
+                                onTap: () {
+                                  if (isAssigned) {
+                                    setDialogState(
+                                      () => currentPeople.remove(userId),
+                                    );
+                                    _firestoreService.removePersonFromArea(
+                                      areaId: areaId,
+                                      userId: userId,
+                                    );
+                                  } else {
+                                    setDialogState(
+                                      () => currentPeople.add(userId),
+                                    );
+                                    _firestoreService.addPersonToArea(
+                                      areaId: areaId,
+                                      userId: userId,
+                                    );
+                                  }
+                                },
                               ),
-                              trailing: isAssigned
-                                  ? const Icon(
-                                      Icons.check_circle,
-                                      color: Colors.black87,
-                                      size: 22,
-                                    )
-                                  : Icon(
-                                      Icons.add_circle_outline,
-                                      color: Colors.grey[400],
-                                      size: 22,
-                                    ),
-                              onTap: () {
-                                if (isAssigned) {
-                                  setDialogState(
-                                    () => currentPeople.remove(userId),
-                                  );
-                                  _firestoreService.removePersonFromArea(
-                                    areaId: areaId,
-                                    userId: userId,
-                                  );
-                                } else {
-                                  setDialogState(
-                                    () => currentPeople.add(userId),
-                                  );
-                                  _firestoreService.addPersonToArea(
-                                    areaId: areaId,
-                                    userId: userId,
-                                  );
-                                }
-                              },
                             );
                           },
                         );
