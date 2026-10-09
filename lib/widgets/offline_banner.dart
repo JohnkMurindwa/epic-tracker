@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../services/app_strings.dart';
 
+/// Subtle "Offline mode" strip shown while the phone has no connection.
 class OfflineBanner extends StatefulWidget {
   const OfflineBanner({super.key});
 
@@ -45,21 +46,22 @@ class _OfflineBannerState extends State<OfflineBanner> {
     AppStrings.watch(context);
     if (!_isOffline) return const SizedBox.shrink();
 
+    // Informational only: clock in/out keeps working offline and syncs
+    // automatically when the connection returns.
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      color: Colors.red[700],
+      padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 16),
+      color: Colors.grey[200],
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.wifi_off, color: Colors.white, size: 16),
-          const SizedBox(width: 8),
-          Text(
-            AppStrings.noInternet,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+          Icon(Icons.cloud_off, color: Colors.grey[700], size: 14),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              AppStrings.offlineMode,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[700], fontSize: 12),
             ),
           ),
         ],

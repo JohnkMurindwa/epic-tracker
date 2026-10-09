@@ -14,9 +14,10 @@ class NotificationService {
 
   static const int _clockOutReminderId = 1;
 
-  /// Time of day the "forgot to clock out" reminder fires (4:30 PM).
+  /// Time of day the "forgot to clock out" reminder fires (4:00 PM).
+  /// The in-app missed clock-out dialog uses the same time.
   static const int reminderHour = 16;
-  static const int reminderMinute = 30;
+  static const int reminderMinute = 0;
 
   /// Call once in `main()` before `runApp`.
   static Future<void> init() async {
@@ -39,7 +40,7 @@ class NotificationService {
     }
   }
 
-  /// Schedules today's 4:30 PM reminder if [isClockedIn], otherwise cancels
+  /// Schedules today's end-of-day reminder if [isClockedIn], otherwise cancels
   /// it. Safe to call repeatedly — it always replaces the previous reminder.
   static Future<void> syncClockOutReminder({required bool isClockedIn}) async {
     if (!_initialized) return;
@@ -55,7 +56,7 @@ class NotificationService {
         reminderHour,
         reminderMinute,
       );
-      // Clocked in after 4:30 PM (overtime): no reminder today.
+      // Clocked in after the reminder time (overtime): no reminder today.
       if (!remindAt.isAfter(now)) return;
 
       if (!await _requestPermission()) return;
@@ -63,12 +64,12 @@ class NotificationService {
       await _plugin.zonedSchedule(
         id: _clockOutReminderId,
         // remindAt is phone-local time; converting the instant to UTC keeps
-        // it firing at 4:30 PM local without needing the device time zone.
+        // it firing at that local time without needing the device time zone.
         scheduledDate: tz.TZDateTime.from(remindAt, tz.UTC),
         title: tr('Still clocked in?', '¿Sigues con la entrada registrada?'),
         body: tr(
-          'It\'s 4:30 PM. Don\'t forget to clock out if you\'re done for the day.',
-          'Son las 4:30 PM. No olvides registrar tu salida si ya terminaste el día.',
+          'It\'s 4:00 PM. Tap to tell us what time you left, or that you\'re still working.',
+          'Son las 4:00 PM. Toca para decirnos a qué hora saliste, o que sigues trabajando.',
         ),
         notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(

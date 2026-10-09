@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FirestoreService {
@@ -8,6 +9,23 @@ class FirestoreService {
   CollectionReference get users => _db.collection('users');
   CollectionReference get dailyLogs => _db.collection('daily_logs');
   CollectionReference get crews => _db.collection('crews');
+
+  /// How long clock in/out actions wait for the server before moving on.
+  static const _serverWait = Duration(seconds: 3);
+
+  /// Waits for a write to reach the server, but no longer than [_serverWait].
+  ///
+  /// Firestore saves every write on the device immediately and sends it
+  /// when the connection returns, but the write's Future only completes
+  /// once the server confirms. Offline that never happens, so awaiting it
+  /// directly would leave clock in/out spinning forever.
+  Future<void> _queuedWrite(Future<void> write) async {
+    try {
+      await write.timeout(_serverWait);
+    } on TimeoutException {
+      // Offline or slow: saved locally, will sync automatically.
+    }
+  }
 
   // ─── PROJECTS / JOB SITES ────────────────────────────────
 
@@ -215,22 +233,27 @@ class FirestoreService {
 
     if (existing.docs.isEmpty) {
       // Create new daily log
-      await dailyLogs.add({
-        'installer_id': userId,
-        'installer_name': userName,
-        'installer_role': userRole,
-        'log_date': Timestamp.fromDate(todayStart),
-        'date': FieldValue.serverTimestamp(),
-        'location': location,
-        'time_entries': [timeEntry],
-        'photo_url': null,
-        'is_day_complete': false,
-      });
+      // doc().set() rather than add(): add() waits for the server.
+      await _queuedWrite(
+        dailyLogs.doc().set({
+          'installer_id': userId,
+          'installer_name': userName,
+          'installer_role': userRole,
+          'log_date': Timestamp.fromDate(todayStart),
+          'date': FieldValue.serverTimestamp(),
+          'location': location,
+          'time_entries': [timeEntry],
+          'photo_url': null,
+          'is_day_complete': false,
+        }),
+      );
     } else {
       // Add new time entry to existing log
-      await existing.docs.first.reference.update({
-        'time_entries': FieldValue.arrayUnion([timeEntry]),
-      });
+      await _queuedWrite(
+        existing.docs.first.reference.update({
+          'time_entries': FieldValue.arrayUnion([timeEntry]),
+        }),
+      );
     }
   }
 
@@ -250,8 +273,81 @@ class FirestoreService {
         .get();
 
     if (snapshot.docs.isEmpty) return;
+    await _closeOpenEntry(
+      snapshot.docs.first,
+      userId: userId,
+      description: description,
+      clockOut: now,
+    );
+  }
 
-    final doc = snapshot.docs.first;
+  /// Clock out a session the user forgot to close, at the time they say
+  /// they left. Works for today's log or an earlier day's.
+  Future<void> clockOutMissed({
+    required String logId,
+    required String userId,
+    required DateTime leftAt,
+  }) async {
+    final doc = await dailyLogs.doc(logId).get();
+    if (!doc.exists) return;
+    await _closeOpenEntry(
+      doc,
+      userId: userId,
+      description: missedClockOutDescription,
+      clockOut: leftAt,
+      missed: true,
+    );
+  }
+
+  /// Stored description for a session closed through the missed clock-out
+  /// dialog (English, like all stored descriptions).
+  static const missedClockOutDescription = 'Forgot to clock out';
+
+  /// Daily logs from the last [days] days (today included) whose last
+  /// time entry was never clocked out, oldest first.
+  Future<List<Map<String, dynamic>>> getLogsWithOpenEntry(
+    String userId, {
+    int days = 14,
+  }) async {
+    final now = DateTime.now();
+    final cutoff = DateTime(now.year, now.month, now.day - days);
+
+    // Two equality filters: served by single-field indexes, no composite
+    // index needed. Date filtering happens below.
+    final snapshot = await dailyLogs
+        .where('installer_id', isEqualTo: userId)
+        .where('is_day_complete', isEqualTo: false)
+        .get();
+
+    final open = <Map<String, dynamic>>[];
+    for (final doc in snapshot.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final logDate = (data['log_date'] as Timestamp?)?.toDate();
+      if (logDate == null || logDate.isBefore(cutoff)) continue;
+      final entries = List<Map<String, dynamic>>.from(
+        data['time_entries'] ?? [],
+      );
+      if (entries.isNotEmpty && entries.last['clockOut'] == null) {
+        open.add({'id': doc.id, ...data});
+      }
+    }
+    open.sort(
+      (a, b) =>
+          (a['log_date'] as Timestamp).compareTo(b['log_date'] as Timestamp),
+    );
+    return open;
+  }
+
+  /// Closes the open (last) time entry of [doc] at [clockOut].
+  /// Hours worked exclude any lunch break taken during the session; a lunch
+  /// that was never ended is treated as lasting until [clockOut].
+  Future<void> _closeOpenEntry(
+    DocumentSnapshot doc, {
+    required String userId,
+    required String description,
+    required DateTime clockOut,
+    bool missed = false,
+  }) async {
     final data = doc.data() as Map<String, dynamic>;
     final entries = List<Map<String, dynamic>>.from(data['time_entries'] ?? []);
 
@@ -260,25 +356,30 @@ class FirestoreService {
     // Find the last entry (the one without a clockOut)
     final lastIndex = entries.length - 1;
     final lastEntry = entries[lastIndex];
+    if (lastEntry['clockOut'] != null) return;
 
     // Calculate hours worked
-    final clockIn = (lastEntry['clockIn'] as Timestamp?)?.toDate() ?? now;
-    double hoursWorked = now.difference(clockIn).inMinutes / 60.0;
+    final clockIn = (lastEntry['clockIn'] as Timestamp?)?.toDate() ?? clockOut;
+    double hoursWorked = clockOut.difference(clockIn).inMinutes / 60.0;
 
     // Subtract lunch if it happened during THIS session
+    final isOnLunch = data['is_on_lunch'] == true;
     final lunchStart = (data['lunch_start'] as Timestamp?)?.toDate();
-    final lunchEnd = (data['lunch_end'] as Timestamp?)?.toDate();
+    final lunchEnd = isOnLunch
+        ? clockOut
+        : (data['lunch_end'] as Timestamp?)?.toDate();
     if (lunchStart != null && lunchEnd != null) {
       // Lunch happened within this session's window?
-      if (lunchStart.isAfter(clockIn) && lunchEnd.isBefore(now)) {
+      if (lunchStart.isAfter(clockIn) && !lunchEnd.isAfter(clockOut)) {
         final lunchMinutes = lunchEnd.difference(lunchStart).inMinutes;
         hoursWorked -= lunchMinutes / 60.0;
-        if (hoursWorked < 0) hoursWorked = 0;
       }
     }
+    if (hoursWorked < 0) hoursWorked = 0;
 
     // Update crew days consumed for this area, then snapshot the
     // remaining count into the entry so history can show the countdown.
+    // Foremen clock in at a whole site (no area), so nothing is consumed.
     final areaId = lastEntry['areaId'] as String?;
     double? crewDaysLeftSnapshot;
     if (areaId != null) {
@@ -300,16 +401,23 @@ class FirestoreService {
     // Update the entry (with snapshot if available)
     entries[lastIndex] = {
       ...lastEntry,
-      'clockOut': Timestamp.now(),
+      'clockOut': Timestamp.fromDate(clockOut),
       'description': description,
       'hoursWorked': double.parse(hoursWorked.toStringAsFixed(2)),
+      if (missed) 'clockOutMissed': true,
       if (crewDaysLeftSnapshot != null)
         'crewDaysLeftAfter': double.parse(
           crewDaysLeftSnapshot.toStringAsFixed(1),
         ),
     };
 
-    await doc.reference.update({'time_entries': entries});
+    await _queuedWrite(
+      doc.reference.update({
+        'time_entries': entries,
+        if (isOnLunch) 'is_on_lunch': false,
+        if (isOnLunch) 'lunch_end': Timestamp.fromDate(clockOut),
+      }),
+    );
   }
 
   /// Update crew days consumed based on hours worked.
@@ -323,9 +431,11 @@ class FirestoreService {
     // Each person contributes hours/16 crew days
     final crewDaysContributed = hoursWorked / 16.0;
 
-    await _db.collection('areas').doc(areaId).update({
-      'consumedCrewDays': FieldValue.increment(crewDaysContributed),
-    });
+    await _queuedWrite(
+      _db.collection('areas').doc(areaId).update({
+        'consumedCrewDays': FieldValue.increment(crewDaysContributed),
+      }),
+    );
   }
 
   /// Save end-of-day photo.
@@ -373,7 +483,7 @@ class FirestoreService {
         .get();
 
     if (snapshot.docs.isNotEmpty) {
-      await snapshot.docs.first.reference.update(data);
+      await _queuedWrite(snapshot.docs.first.reference.update(data));
     }
   }
 
@@ -389,7 +499,9 @@ class FirestoreService {
         .get();
 
     if (snapshot.docs.isNotEmpty) {
-      await snapshot.docs.first.reference.update({'is_day_complete': true});
+      await _queuedWrite(
+        snapshot.docs.first.reference.update({'is_day_complete': true}),
+      );
     }
   }
 

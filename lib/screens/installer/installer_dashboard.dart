@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 import '../../services/app_strings.dart';
 import '../../services/notification_service.dart';
 import '../../services/location_service.dart';
+import '../../widgets/missed_clock_out_checker.dart';
 
 class InstallerDashboard extends StatefulWidget {
   final UserModel user;
@@ -20,7 +21,8 @@ class InstallerDashboard extends StatefulWidget {
   State<InstallerDashboard> createState() => _InstallerDashboardState();
 }
 
-class _InstallerDashboardState extends State<InstallerDashboard> {
+class _InstallerDashboardState extends State<InstallerDashboard>
+    with MissedClockOutChecker {
   final AuthService _authService = AuthService();
   final FirestoreService _firestoreService = FirestoreService();
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -52,6 +54,29 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
   @override
   void initState() {
     super.initState();
+    _loadTodaysState();
+    startMissedClockOutChecks();
+  }
+
+  @override
+  void dispose() {
+    stopMissedClockOutChecks();
+    super.dispose();
+  }
+
+  @override
+  String get checkerUserId => widget.user.id;
+
+  @override
+  void onMissedClockOutSaved() {
+    setState(() {
+      _isClockedIn = false;
+      _isOnLunch = false;
+      _lunchStartTime = null;
+      _currentAreaId = null;
+      _currentAreaName = null;
+      _currentProjectName = null;
+    });
     _loadTodaysState();
   }
 
@@ -846,7 +871,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                         width: 26,
                         height: 26,
                         decoration: BoxDecoration(
-                          color: isActive ? Colors.black87 : Colors.green,
+                          color: Colors.black87,
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -1069,7 +1094,7 @@ class _InstallerDashboardState extends State<InstallerDashboard> {
                           width: 26,
                           height: 26,
                           decoration: const BoxDecoration(
-                            color: Colors.green,
+                            color: Colors.black87,
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(

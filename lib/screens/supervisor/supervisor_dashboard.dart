@@ -9,6 +9,7 @@ import '../../widgets/offline_banner.dart';
 import '../../widgets/language_toggle.dart';
 import '../../services/app_strings.dart';
 import 'foreman_time_tab.dart';
+import '../../widgets/missed_clock_out_checker.dart';
 
 class SupervisorDashboard extends StatefulWidget {
   final UserModel user;
@@ -19,7 +20,7 @@ class SupervisorDashboard extends StatefulWidget {
 }
 
 class _SupervisorDashboardState extends State<SupervisorDashboard>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, MissedClockOutChecker {
   final AuthService _authService = AuthService();
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirestoreService _firestoreService = FirestoreService();
@@ -30,17 +31,28 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
   /// Foremen also clock in, so they get a "My Time" tab first.
   bool get _isForeman => widget.user.role == 'foreman';
 
+  /// Bumped to reload the My Time tab after a missed clock-out is saved.
+  int _timeTabVersion = 0;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: _isForeman ? 3 : 2, vsync: this);
+    if (_isForeman) startMissedClockOutChecks();
   }
 
   @override
   void dispose() {
+    if (_isForeman) stopMissedClockOutChecks();
     _tabController.dispose();
     super.dispose();
   }
+
+  @override
+  String get checkerUserId => widget.user.id;
+
+  @override
+  void onMissedClockOutSaved() => setState(() => _timeTabVersion++);
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +91,11 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
             child: TabBarView(
               controller: _tabController,
               children: [
-                if (_isForeman) ForemanTimeTab(user: widget.user),
+                if (_isForeman)
+                  ForemanTimeTab(
+                    key: ValueKey(_timeTabVersion),
+                    user: widget.user,
+                  ),
                 _buildCrewTab(),
                 _buildJobSitesTab(),
               ],

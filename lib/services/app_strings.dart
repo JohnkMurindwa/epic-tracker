@@ -94,8 +94,10 @@ class AppStrings {
   static String get endLunch => tr('end lunch', 'terminar almuerzo');
   static String get signOut => tr('Sign Out', 'Cerrar Sesión');
   static String get deleteAccount => tr('Delete Account', 'Eliminar Cuenta');
-  static String get noInternet =>
-      tr('No internet connection', 'Sin conexión a internet');
+  static String get offlineMode => tr(
+    'Offline mode · changes will sync when you\'re back online',
+    'Modo sin conexión · los cambios se enviarán al volver a conectarte',
+  );
 
   // ─── Common UI ────────────────────────────────────────
   static String get cancel => tr('Cancel', 'Cancelar');
@@ -194,6 +196,8 @@ class AppStrings {
     'Float bath floor': 'Flotear el piso del baño',
     'Apply grout': 'Aplicar lechada',
     'Seal the tile': 'Sellar el azulejo',
+    // Set by the missed clock-out dialog, not picked by the worker.
+    'Forgot to clock out': 'Olvidó registrar la salida',
   };
 
   /// Display text for one work item stored in English.
