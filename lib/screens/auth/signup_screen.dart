@@ -244,6 +244,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
+    // Checked here rather than relying on Firebase: on Android its
+    // weak-password error can fail to come back, leaving the button spinning.
+    if (_passwordController.text.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr(
+              'Password must be at least 6 characters!',
+              '¡La contraseña debe tener al menos 6 caracteres!',
+            ),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
