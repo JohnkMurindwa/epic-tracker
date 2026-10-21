@@ -1514,14 +1514,24 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
           final workers = (snapshot.data?.docs ?? []).toList()
             ..sort((a, b) => _nameOf(a).compareTo(_nameOf(b)));
 
-          return StreamBuilder<DocumentSnapshot>(
-            stream: _db.collection('projects').doc(projectId).snapshots(),
-            builder: (context, projectSnap) {
-              final projectData =
-                  projectSnap.data?.data() as Map<String, dynamic>? ?? {};
-              final assignedWorkers = List<String>.from(
-                projectData['assignedWorkers'] ?? [],
-              );
+          return StreamBuilder<QuerySnapshot>(
+            // All sites in one stream: this one for its pool, the other
+            // active ones to show who is already assigned elsewhere.
+            stream: _db.collection('projects').snapshots(),
+            builder: (context, projectsSnap) {
+              final assignedWorkers = <String>[];
+              final otherSites = <String, int>{};
+              for (final p in projectsSnap.data?.docs ?? []) {
+                final data = p.data() as Map<String, dynamic>;
+                final pool = List<String>.from(data['assignedWorkers'] ?? []);
+                if (p.id == projectId) {
+                  assignedWorkers.addAll(pool);
+                } else if ((data['status'] ?? 'active') == 'active') {
+                  for (final id in pool) {
+                    otherSites[id] = (otherSites[id] ?? 0) + 1;
+                  }
+                }
+              }
 
               return AlertDialog(
                 title: Text(
@@ -1550,6 +1560,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                                 data['name'] ?? tr('Unknown', 'Desconocido');
                             final role = _roleLabel(data['role'] ?? '');
                             final isAssigned = assignedWorkers.contains(doc.id);
+                            final elsewhere = otherSites[doc.id] ?? 0;
 
                             return Material(
                               // Keeps the tap highlight visible inside the dialog.
@@ -1581,7 +1592,9 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                                   ),
                                 ),
                                 subtitle: Text(
-                                  role,
+                                  elsewhere == 0
+                                      ? role
+                                      : '$role \u2022 ${_otherSitesLabel(elsewhere)}',
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: Colors.grey[500],
@@ -2241,6 +2254,11 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
 
   /// Display label for a stored role value.
   String _roleLabel(String role) => AppStrings.role(role);
+
+  /// "also on 2 other sites" — how many other active site pools a worker is in.
+  String _otherSitesLabel(int n) => n == 1
+      ? tr('also on 1 other site', 'también en otra obra')
+      : tr('also on $n other sites', 'también en $n otras obras');
 
   /// Lower-cased user name for sorting worker lists alphabetically.
   String _nameOf(DocumentSnapshot doc) =>

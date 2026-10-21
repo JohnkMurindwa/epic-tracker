@@ -358,24 +358,16 @@ class FirestoreService {
     final lastEntry = entries[lastIndex];
     if (lastEntry['clockOut'] != null) return;
 
-    // Calculate hours worked
+    // Calculate hours worked (lunch taken during THIS session is excluded)
     final clockIn = (lastEntry['clockIn'] as Timestamp?)?.toDate() ?? clockOut;
-    double hoursWorked = clockOut.difference(clockIn).inMinutes / 60.0;
-
-    // Subtract lunch if it happened during THIS session
     final isOnLunch = data['is_on_lunch'] == true;
-    final lunchStart = (data['lunch_start'] as Timestamp?)?.toDate();
-    final lunchEnd = isOnLunch
-        ? clockOut
-        : (data['lunch_end'] as Timestamp?)?.toDate();
-    if (lunchStart != null && lunchEnd != null) {
-      // Lunch happened within this session's window?
-      if (lunchStart.isAfter(clockIn) && !lunchEnd.isAfter(clockOut)) {
-        final lunchMinutes = lunchEnd.difference(lunchStart).inMinutes;
-        hoursWorked -= lunchMinutes / 60.0;
-      }
-    }
-    if (hoursWorked < 0) hoursWorked = 0;
+    final hoursWorked = sessionHoursWorked(
+      clockIn: clockIn,
+      clockOut: clockOut,
+      lunchStart: (data['lunch_start'] as Timestamp?)?.toDate(),
+      lunchEnd: (data['lunch_end'] as Timestamp?)?.toDate(),
+      isOnLunch: isOnLunch,
+    );
 
     // Update crew days consumed for this area, then snapshot the
     // remaining count into the entry so history can show the countdown.
@@ -558,4 +550,28 @@ class FirestoreService {
 
     return snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
   }
+}
+
+/// Hours worked for one area session, [clockIn] to [clockOut], minus a lunch
+/// break that fell inside that window. A lunch still open at clock-out
+/// ([isOnLunch]) is treated as ending at [clockOut]. Never negative.
+///
+/// Kept as a plain function (no Firestore) so payroll math can be unit tested.
+double sessionHoursWorked({
+  required DateTime clockIn,
+  required DateTime clockOut,
+  DateTime? lunchStart,
+  DateTime? lunchEnd,
+  bool isOnLunch = false,
+}) {
+  double hours = clockOut.difference(clockIn).inMinutes / 60.0;
+
+  final end = isOnLunch ? clockOut : lunchEnd;
+  if (lunchStart != null && end != null) {
+    // Lunch happened within this session's window?
+    if (lunchStart.isAfter(clockIn) && !end.isAfter(clockOut)) {
+      hours -= end.difference(lunchStart).inMinutes / 60.0;
+    }
+  }
+  return hours < 0 ? 0 : hours;
 }
