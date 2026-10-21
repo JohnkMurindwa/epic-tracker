@@ -57,6 +57,13 @@ class AppStrings {
     localeNotifier.value = 'en';
   }
 
+  /// Shows English for this session without changing the user's saved
+  /// preference. The admin dashboard is English-only; to bring Spanish
+  /// back there, stop calling this and re-add the LanguageToggle.
+  static void useEnglishOnly() {
+    localeNotifier.value = 'en';
+  }
+
   static Future<void> setLocale(String locale) async {
     localeNotifier.value = locale;
     await _save(locale);

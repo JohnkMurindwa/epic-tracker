@@ -8,6 +8,7 @@ import '../../widgets/epic_week_header.dart';
 import '../../widgets/offline_banner.dart';
 import '../../widgets/language_toggle.dart';
 import '../../services/app_strings.dart';
+import 'foreman_crew_roster.dart';
 import 'foreman_time_tab.dart';
 import '../../widgets/missed_clock_out_checker.dart';
 
@@ -117,11 +118,18 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
         _buildTodayStats(),
         const SizedBox(height: 20),
         Text(
-          tr('Installer Activity', 'Actividad de Instaladores'),
+          _isForeman
+              ? tr('My Crew', 'Mi Equipo')
+              : tr('Installer Activity', 'Actividad de Instaladores'),
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 10),
-        _buildInstallerFeed(),
+        // Foremen see their assigned crew (and themselves) with live status;
+        // supervisors see everyone's clock-ins grouped by site and area.
+        if (_isForeman)
+          ForemanCrewRoster(foreman: widget.user, day: _selectedDay)
+        else
+          _buildInstallerFeed(),
         const SizedBox(height: 24),
       ],
     );
@@ -263,29 +271,11 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
       _selectedDay.day,
     );
 
-    // Foremen: wrap with a projects query to get assigned project IDs
-    if (widget.user.role == 'foreman') {
-      return StreamBuilder<QuerySnapshot>(
-        stream: _db
-            .collection('projects')
-            .where('assignedForemen', arrayContains: widget.user.id)
-            .snapshots(),
-        builder: (context, projectSnapshot) {
-          final assignedProjectIds = (projectSnapshot.data?.docs ?? [])
-              .map((doc) => doc.id)
-              .toSet();
-          return _buildInstallerFeedBody(todayStart, assignedProjectIds);
-        },
-      );
-    }
-
-    return _buildInstallerFeedBody(todayStart, null);
+    // Supervisors only; foremen get ForemanCrewRoster instead.
+    return _buildInstallerFeedBody(todayStart);
   }
 
-  Widget _buildInstallerFeedBody(
-    DateTime todayStart,
-    Set<String>? foremanProjectIds,
-  ) {
+  Widget _buildInstallerFeedBody(DateTime todayStart) {
     return StreamBuilder<QuerySnapshot>(
       stream: _db
           .collection('daily_logs')
@@ -301,7 +291,15 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
           );
         }
 
-        final logs = snapshot.data?.docs ?? [];
+        // Installers, junior installers and helpers only — foremen clock in
+        // at a whole site and are not part of this feed.
+        final logs = (snapshot.data?.docs ?? [])
+            .where(
+              (doc) =>
+                  (doc.data() as Map<String, dynamic>)['installer_role'] !=
+                  'foreman',
+            )
+            .toList();
 
         if (logs.isEmpty) {
           return Container(
@@ -336,15 +334,6 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
           );
 
           for (final entry in entries) {
-            // Foreman filter: skip entries from projects not assigned to this foreman
-            if (foremanProjectIds != null) {
-              final entryProjectId = entry['projectId'] as String?;
-              if (entryProjectId == null ||
-                  !foremanProjectIds.contains(entryProjectId)) {
-                continue;
-              }
-            }
-
             final projectName =
                 entry['projectName'] as String? ??
                 tr('Unknown Site', 'Obra desconocida');
@@ -419,303 +408,340 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                 data: Theme.of(
                   context,
                 ).copyWith(dividerColor: Colors.transparent),
-                child: ExpansionTile(
-                  tilePadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 2,
-                  ),
-                  childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-                  leading: const CircleAvatar(
-                    backgroundColor: Colors.black87,
-                    radius: 17,
-                    child: Icon(
-                      Icons.location_on,
-                      color: Colors.white,
-                      size: 18,
+                child: Material(
+                  // Draws the tap highlight above the colored card.
+                  type: MaterialType.transparency,
+                  child: ExpansionTile(
+                    tilePadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 2,
                     ),
-                  ),
-                  title: Text(
-                    siteName,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
+                    childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+                    leading: const CircleAvatar(
+                      backgroundColor: Colors.black87,
+                      radius: 17,
+                      child: Icon(
+                        Icons.location_on,
+                        color: Colors.white,
+                        size: 18,
+                      ),
                     ),
-                  ),
-                  subtitle: Text(
-                    '${_count(levels.length, tr('level', 'nivel'), tr('levels', 'niveles'))} \u2022 ${_workersLabel(totalWorkers)}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                  ),
-                  children: [
-                    ...levels.entries.map((levelGroup) {
-                      final levelName = levelGroup.key;
-                      final areas = levelGroup.value;
-                      int levelWorkers = 0;
-                      for (final a in areas.values) {
-                        levelWorkers += a.length;
-                      }
+                    title: Text(
+                      siteName,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: Text(
+                      '${_count(levels.length, tr('level', 'nivel'), tr('levels', 'niveles'))} \u2022 ${_workersLabel(totalWorkers)}',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    ),
+                    children: [
+                      ...levels.entries.map((levelGroup) {
+                        final levelName = levelGroup.key;
+                        final areas = levelGroup.value;
+                        int levelWorkers = 0;
+                        for (final a in areas.values) {
+                          levelWorkers += a.length;
+                        }
 
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[50],
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Theme(
-                          data: Theme.of(
-                            context,
-                          ).copyWith(dividerColor: Colors.transparent),
-                          child: ExpansionTile(
-                            tilePadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                            ),
-                            childrenPadding: const EdgeInsets.fromLTRB(
-                              8,
-                              0,
-                              8,
-                              8,
-                            ),
-                            leading: Icon(
-                              Icons.layers,
-                              size: 18,
-                              color: Colors.grey[600],
-                            ),
-                            title: Text(
-                              levelName,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey[800],
-                              ),
-                            ),
-                            subtitle: Text(
-                              '${_count(areas.length, tr('area', 'área'), tr('areas', 'áreas'))} \u2022 ${_workersLabel(levelWorkers)}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey[500],
-                              ),
-                            ),
-                            children: [
-                              ...areas.entries.map((areaGroup) {
-                                final areaName = areaGroup.key;
-                                final workers = areaGroup.value;
-                                final activeCount = workers
-                                    .where((w) => w['clockOut'] == null)
-                                    .length;
-
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 6),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black87.withValues(
-                                      alpha: 0.04,
-                                    ),
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                      color: Colors.black87.withValues(
-                                        alpha: 0.1,
-                                      ),
-                                    ),
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Theme(
+                            data: Theme.of(
+                              context,
+                            ).copyWith(dividerColor: Colors.transparent),
+                            child: Material(
+                              // Draws the tap highlight above the colored card.
+                              type: MaterialType.transparency,
+                              child: ExpansionTile(
+                                tilePadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                childrenPadding: const EdgeInsets.fromLTRB(
+                                  8,
+                                  0,
+                                  8,
+                                  8,
+                                ),
+                                leading: Icon(
+                                  Icons.layers,
+                                  size: 18,
+                                  color: Colors.grey[600],
+                                ),
+                                title: Text(
+                                  levelName,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey[800],
                                   ),
-                                  child: Theme(
-                                    data: Theme.of(context).copyWith(
-                                      dividerColor: Colors.transparent,
-                                    ),
-                                    child: ExpansionTile(
-                                      tilePadding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                      ),
-                                      childrenPadding:
-                                          const EdgeInsets.fromLTRB(
-                                            10,
-                                            0,
-                                            10,
-                                            8,
-                                          ),
-                                      title: Text(
-                                        areaName,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.black87,
-                                        ),
-                                      ),
-                                      subtitle: Text(
-                                        '${_workersLabel(workers.length)}${activeCount > 0 ? ' \u2022 ${tr('$activeCount active', '$activeCount activos')}' : ''}',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: Colors.grey[500],
-                                        ),
-                                      ),
-                                      children: [
-                                        ...workers.map((w) {
-                                          final wName = w['name'] as String;
-                                          final wRole = _roleLabel(
-                                            w['role'] as String,
-                                          );
-                                          final clockIn =
-                                              (w['clockIn'] as Timestamp?)
-                                                  ?.toDate();
-                                          final clockOut =
-                                              (w['clockOut'] as Timestamp?)
-                                                  ?.toDate();
-                                          final hours = (w['hoursWorked'] ?? 0)
-                                              .toDouble();
-                                          final description =
-                                              w['description'] as String?;
-                                          final isActive = clockOut == null;
+                                ),
+                                subtitle: Text(
+                                  '${_count(areas.length, tr('area', 'área'), tr('areas', 'áreas'))} \u2022 ${_workersLabel(levelWorkers)}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey[500],
+                                  ),
+                                ),
+                                children: [
+                                  ...areas.entries.map((areaGroup) {
+                                    final areaName = areaGroup.key;
+                                    final workers = areaGroup.value;
+                                    final activeCount = workers
+                                        .where((w) => w['clockOut'] == null)
+                                        .length;
 
-                                          return Container(
-                                            margin: const EdgeInsets.only(
-                                              bottom: 6,
+                                    return Container(
+                                      margin: const EdgeInsets.only(bottom: 6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black87.withValues(
+                                          alpha: 0.04,
+                                        ),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: Colors.black87.withValues(
+                                            alpha: 0.1,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Theme(
+                                        data: Theme.of(context).copyWith(
+                                          dividerColor: Colors.transparent,
+                                        ),
+                                        child: Material(
+                                          // Draws the tap highlight above the colored card.
+                                          type: MaterialType.transparency,
+                                          child: ExpansionTile(
+                                            tilePadding:
+                                                const EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                ),
+                                            childrenPadding:
+                                                const EdgeInsets.fromLTRB(
+                                                  10,
+                                                  0,
+                                                  10,
+                                                  8,
+                                                ),
+                                            title: Text(
+                                              areaName,
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.black87,
+                                              ),
                                             ),
-                                            padding: const EdgeInsets.all(10),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
+                                            subtitle: Text(
+                                              '${_workersLabel(workers.length)}${activeCount > 0 ? ' \u2022 ${tr('$activeCount active', '$activeCount activos')}' : ''}',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.grey[500],
+                                              ),
                                             ),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Row(
-                                                  children: [
-                                                    CircleAvatar(
-                                                      radius: 13,
-                                                      backgroundColor: isActive
-                                                          ? Colors.green
-                                                                .withValues(
-                                                                  alpha: 0.15,
-                                                                )
-                                                          : Colors.grey[200],
-                                                      child: Text(
-                                                        wName.isNotEmpty
-                                                            ? wName[0]
-                                                                  .toUpperCase()
-                                                            : '?',
-                                                        style: TextStyle(
-                                                          fontSize: 12,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          color: isActive
-                                                              ? Colors.green
-                                                              : Colors
-                                                                    .grey[600],
+                                            children: [
+                                              ...workers.map((w) {
+                                                final wName =
+                                                    w['name'] as String;
+                                                final wRole = _roleLabel(
+                                                  w['role'] as String,
+                                                );
+                                                final clockIn =
+                                                    (w['clockIn'] as Timestamp?)
+                                                        ?.toDate();
+                                                final clockOut =
+                                                    (w['clockOut']
+                                                            as Timestamp?)
+                                                        ?.toDate();
+                                                final hours =
+                                                    (w['hoursWorked'] ?? 0)
+                                                        .toDouble();
+                                                final description =
+                                                    w['description'] as String?;
+                                                final isActive =
+                                                    clockOut == null;
+
+                                                return Container(
+                                                  margin: const EdgeInsets.only(
+                                                    bottom: 6,
+                                                  ),
+                                                  padding: const EdgeInsets.all(
+                                                    10,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
                                                         ),
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 8),
-                                                    Expanded(
-                                                      child: Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
+                                                  ),
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Row(
                                                         children: [
-                                                          Text(
-                                                            wName,
-                                                            style:
-                                                                const TextStyle(
-                                                                  fontSize: 13,
+                                                          CircleAvatar(
+                                                            radius: 13,
+                                                            backgroundColor:
+                                                                isActive
+                                                                ? Colors.green
+                                                                      .withValues(
+                                                                        alpha:
+                                                                            0.15,
+                                                                      )
+                                                                : Colors
+                                                                      .grey[200],
+                                                            child: Text(
+                                                              wName.isNotEmpty
+                                                                  ? wName[0]
+                                                                        .toUpperCase()
+                                                                  : '?',
+                                                              style: TextStyle(
+                                                                fontSize: 12,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                                color: isActive
+                                                                    ? Colors
+                                                                          .green
+                                                                    : Colors
+                                                                          .grey[600],
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 8,
+                                                          ),
+                                                          Expanded(
+                                                            child: Column(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                Text(
+                                                                  wName,
+                                                                  style: const TextStyle(
+                                                                    fontSize:
+                                                                        13,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w600,
+                                                                  ),
+                                                                ),
+                                                                Text(
+                                                                  wRole,
+                                                                  style: TextStyle(
+                                                                    fontSize:
+                                                                        10,
+                                                                    color: Colors
+                                                                        .grey[500],
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                          if (isActive)
+                                                            Container(
+                                                              padding:
+                                                                  const EdgeInsets.symmetric(
+                                                                    horizontal:
+                                                                        6,
+                                                                    vertical: 2,
+                                                                  ),
+                                                              decoration: BoxDecoration(
+                                                                color: Colors
+                                                                    .green
+                                                                    .withValues(
+                                                                      alpha:
+                                                                          0.1,
+                                                                    ),
+                                                                borderRadius:
+                                                                    BorderRadius.circular(
+                                                                      4,
+                                                                    ),
+                                                              ),
+                                                              child: Text(
+                                                                tr(
+                                                                  'Active',
+                                                                  'Activo',
+                                                                ),
+                                                                style: const TextStyle(
+                                                                  fontSize: 10,
+                                                                  color: Colors
+                                                                      .green,
                                                                   fontWeight:
                                                                       FontWeight
                                                                           .w600,
                                                                 ),
-                                                          ),
-                                                          Text(
-                                                            wRole,
-                                                            style: TextStyle(
-                                                              fontSize: 10,
-                                                              color: Colors
-                                                                  .grey[500],
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                    if (isActive)
-                                                      Container(
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
-                                                              horizontal: 6,
-                                                              vertical: 2,
-                                                            ),
-                                                        decoration: BoxDecoration(
-                                                          color: Colors.green
-                                                              .withValues(
-                                                                alpha: 0.1,
                                                               ),
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                4,
-                                                              ),
-                                                        ),
-                                                        child: Text(
-                                                          tr(
-                                                            'Active',
-                                                            'Activo',
-                                                          ),
-                                                          style:
-                                                              const TextStyle(
-                                                                fontSize: 10,
-                                                                color: Colors
-                                                                    .green,
+                                                            )
+                                                          else
+                                                            Text(
+                                                              '${hours.toStringAsFixed(1)}h',
+                                                              style: const TextStyle(
+                                                                fontSize: 13,
                                                                 fontWeight:
                                                                     FontWeight
                                                                         .w600,
+                                                                color: Colors
+                                                                    .black87,
                                                               ),
-                                                        ),
-                                                      )
-                                                    else
+                                                            ),
+                                                        ],
+                                                      ),
+                                                      const SizedBox(height: 4),
                                                       Text(
-                                                        '${hours.toStringAsFixed(1)}h',
-                                                        style: const TextStyle(
-                                                          fontSize: 13,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          color: Colors.black87,
+                                                        '${clockIn != null ? _formatTime(clockIn) : '--'} \u2013 ${clockOut != null ? _formatTime(clockOut) : tr('now', 'ahora')}',
+                                                        style: TextStyle(
+                                                          fontSize: 11,
+                                                          color:
+                                                              Colors.grey[500],
                                                         ),
                                                       ),
-                                                  ],
-                                                ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  '${clockIn != null ? _formatTime(clockIn) : '--'} \u2013 ${clockOut != null ? _formatTime(clockOut) : tr('now', 'ahora')}',
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    color: Colors.grey[500],
-                                                  ),
-                                                ),
-                                                if (description != null &&
-                                                    description.isNotEmpty)
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                          top: 3,
+                                                      if (description != null &&
+                                                          description
+                                                              .isNotEmpty)
+                                                        Padding(
+                                                          padding:
+                                                              const EdgeInsets.only(
+                                                                top: 3,
+                                                              ),
+                                                          child: Text(
+                                                            AppStrings.workDescription(
+                                                              description,
+                                                            ),
+                                                            style: TextStyle(
+                                                              fontSize: 11,
+                                                              color: Colors
+                                                                  .grey[600],
+                                                            ),
+                                                          ),
                                                         ),
-                                                    child: Text(
-                                                      AppStrings.workDescription(
-                                                        description,
-                                                      ),
-                                                      style: TextStyle(
-                                                        fontSize: 11,
-                                                        color: Colors.grey[600],
-                                                      ),
-                                                    ),
+                                                    ],
                                                   ),
-                                              ],
-                                            ),
-                                          );
-                                        }),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              }),
-                            ],
+                                                );
+                                              }),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
-                      );
-                    }),
-                  ],
+                        );
+                      }),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -821,41 +847,48 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                     data: Theme.of(
                       context,
                     ).copyWith(dividerColor: Colors.transparent),
-                    child: ExpansionTile(
-                      tilePadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 2,
-                      ),
-                      childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.grey[400],
-                        radius: 17,
-                        child: const Icon(
-                          Icons.check,
-                          color: Colors.white,
-                          size: 18,
+                    child: Material(
+                      // Draws the tap highlight above the colored card.
+                      type: MaterialType.transparency,
+                      child: ExpansionTile(
+                        tilePadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 2,
                         ),
-                      ),
-                      title: Text(
-                        tr('Completed', 'Completadas'),
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[600],
+                        childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.grey[400],
+                          radius: 17,
+                          child: const Icon(
+                            Icons.check,
+                            color: Colors.white,
+                            size: 18,
+                          ),
                         ),
-                      ),
-                      subtitle: Text(
-                        _count(
-                          completedProjects.length,
-                          tr('job site', 'obra'),
-                          tr('job sites', 'obras'),
+                        title: Text(
+                          tr('Completed', 'Completadas'),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[600],
+                          ),
                         ),
-                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                        subtitle: Text(
+                          _count(
+                            completedProjects.length,
+                            tr('job site', 'obra'),
+                            tr('job sites', 'obras'),
+                          ),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                        children: completedProjects.map((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          return _buildJobSiteCard(doc.id, data);
+                        }).toList(),
                       ),
-                      children: completedProjects.map((doc) {
-                        final data = doc.data() as Map<String, dynamic>;
-                        return _buildJobSiteCard(doc.id, data);
-                      }).toList(),
                     ),
                   ),
                 ),
@@ -890,127 +923,141 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-          leading: CircleAvatar(
-            backgroundColor: isActive ? Colors.black87 : Colors.grey,
-            radius: 17,
-            child: const Icon(Icons.location_on, color: Colors.white, size: 18),
-          ),
-          title: Text(
-            name,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-          ),
-          subtitle: Text(
-            location.isNotEmpty ? location : tr('No location', 'Sin ubicación'),
-            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-          ),
-          trailing: GestureDetector(
-            onTap: () => _firestoreService.updateProjectStatus(
-              projectId: projectId,
-              status: isActive ? 'completed' : 'active',
+        child: Material(
+          // Draws the tap highlight above the colored card.
+          type: MaterialType.transparency,
+          child: ExpansionTile(
+            tilePadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 2,
             ),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: isActive
-                    ? Colors.black87.withValues(alpha: 0.1)
-                    : Colors.grey.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
+            childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+            leading: CircleAvatar(
+              backgroundColor: isActive ? Colors.black87 : Colors.grey,
+              radius: 17,
+              child: const Icon(
+                Icons.location_on,
+                color: Colors.white,
+                size: 18,
               ),
-              child: Text(
-                _statusLabel(status),
-                style: TextStyle(
-                  color: isActive ? Colors.black87 : Colors.grey[600],
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
+            ),
+            title: Text(
+              name,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              location.isNotEmpty
+                  ? location
+                  : tr('No location', 'Sin ubicación'),
+              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+            ),
+            trailing: GestureDetector(
+              onTap: () => _firestoreService.updateProjectStatus(
+                projectId: projectId,
+                status: isActive ? 'completed' : 'active',
+              ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? Colors.black87.withValues(alpha: 0.1)
+                      : Colors.grey.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _statusLabel(status),
+                  style: TextStyle(
+                    color: isActive ? Colors.black87 : Colors.grey[600],
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),
-          ),
-          children: [
-            // Areas list
-            StreamBuilder<QuerySnapshot>(
-              stream: _firestoreService.getAreasForProject(projectId),
-              builder: (context, areaSnap) {
-                final areas = areaSnap.data?.docs ?? [];
+            children: [
+              // Areas list
+              StreamBuilder<QuerySnapshot>(
+                stream: _firestoreService.getAreasForProject(projectId),
+                builder: (context, areaSnap) {
+                  final areas = areaSnap.data?.docs ?? [];
 
-                if (areas.isEmpty) {
-                  return Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.grid_view,
-                          size: 32,
-                          color: Colors.grey[300],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          tr('No areas yet', 'Aún no hay áreas'),
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[400],
+                  if (areas.isEmpty) {
+                    return Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.grid_view,
+                            size: 32,
+                            color: Colors.grey[300],
                           ),
-                        ),
-                      ],
-                    ),
+                          const SizedBox(height: 6),
+                          Text(
+                            tr('No areas yet', 'Aún no hay áreas'),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[400],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    children: _groupAreasByLevel(areas, projectId, name),
                   );
-                }
+                },
+              ),
 
-                return Column(
-                  children: _groupAreasByLevel(areas, projectId, name),
-                );
-              },
-            ),
-
-            const SizedBox(height: 10),
-            Wrap(
-              children: [
-                if (widget.user.role == 'supervisor') ...[
-                  const SizedBox(width: 8),
-                  OutlinedButton.icon(
-                    onPressed: () =>
-                        _showAssignWorkersToSiteDialog(projectId, name),
-                    icon: const Icon(Icons.group_add, size: 16),
-                    label: Text(
-                      tr('Assign Workers', 'Asignar Trabajadores'),
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.black87),
-                      foregroundColor: Colors.black87,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+              const SizedBox(height: 10),
+              Wrap(
+                children: [
+                  if (widget.user.role == 'supervisor') ...[
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      onPressed: () =>
+                          _showAssignWorkersToSiteDialog(projectId, name),
+                      icon: const Icon(Icons.group_add, size: 16),
+                      label: Text(
+                        tr('Assign Workers', 'Asignar Trabajadores'),
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.black87),
+                        foregroundColor: Colors.black87,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  OutlinedButton.icon(
-                    onPressed: () => _showAssignForemanDialog(projectId, name),
-                    icon: const Icon(Icons.person_pin, size: 16),
-                    label: Text(
-                      tr('Assign Foreman', 'Asignar Capataz'),
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.black87),
-                      foregroundColor: Colors.black87,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      onPressed: () =>
+                          _showAssignForemanDialog(projectId, name),
+                      icon: const Icon(Icons.person_pin, size: 16),
+                      label: Text(
+                        tr('Assign Foreman', 'Asignar Capataz'),
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.black87),
+                        foregroundColor: Colors.black87,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1042,144 +1089,150 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
         ),
         child: Theme(
           data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            tilePadding: const EdgeInsets.symmetric(horizontal: 12),
-            childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-            leading: Icon(Icons.layers, size: 18, color: Colors.grey[600]),
-            title: Text(
-              levelName,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[800],
-              ),
-            ),
-            subtitle: Text(
-              _count(
-                levelAreas.length,
-                tr('area', 'área'),
-                tr('areas', 'áreas'),
-              ),
-              style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-            ),
-            children: levelAreas.map((areaDoc) {
-              final areaData = areaDoc.data() as Map<String, dynamic>;
-              final areaName = areaData['name'] ?? '';
-              final est = (areaData['totalCrewDays'] ?? 0).toDouble();
-              final consumed = (areaData['consumedCrewDays'] ?? 0).toDouble();
-              final progress = est > 0 ? (consumed / est).clamp(0.0, 1.0) : 0.0;
-              final people = List<String>.from(
-                areaData['assignedPeople'] ?? [],
-              );
-              final isDone = progress >= 1.0;
-
-              return Container(
-                margin: const EdgeInsets.only(bottom: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.grey[200]!),
+          child: Material(
+            // Draws the tap highlight above the colored card.
+            type: MaterialType.transparency,
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+              childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+              leading: Icon(Icons.layers, size: 18, color: Colors.grey[600]),
+              title: Text(
+                levelName,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[800],
                 ),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(10),
-                  onTap: () {
-                    _showAreaDetailSheet(
-                      areaDoc.id,
-                      areaData,
-                      projectId,
-                      projectName,
-                    );
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      children: [
-                        // Status icon
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: isDone
-                                ? Colors.green.withValues(alpha: 0.1)
-                                : Colors.black87.withValues(alpha: 0.05),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            isDone ? Icons.check : Icons.construction,
-                            size: 16,
-                            color: isDone ? Colors.green : Colors.black54,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        // Area name + people
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                areaName,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                people.isEmpty
-                                    ? tr('No one assigned', 'Nadie asignado')
-                                    : tr(
-                                        '${people.length} ${people.length == 1 ? 'person' : 'people'} assigned',
-                                        '${people.length} ${people.length == 1 ? 'persona asignada' : 'personas asignadas'}',
-                                      ),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey[500],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Crew days pill
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isDone
-                                ? Colors.green.withValues(alpha: 0.1)
-                                : Colors.grey[100],
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            isDone
-                                ? tr('Done', 'Terminado')
-                                : tr(
-                                    '${(est - consumed).toStringAsFixed(1)} days',
-                                    '${(est - consumed).toStringAsFixed(1)} días',
-                                  ),
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: isDone ? Colors.green : Colors.black87,
+              ),
+              subtitle: Text(
+                _count(
+                  levelAreas.length,
+                  tr('area', 'área'),
+                  tr('areas', 'áreas'),
+                ),
+                style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+              ),
+              children: levelAreas.map((areaDoc) {
+                final areaData = areaDoc.data() as Map<String, dynamic>;
+                final areaName = areaData['name'] ?? '';
+                final est = (areaData['totalCrewDays'] ?? 0).toDouble();
+                final consumed = (areaData['consumedCrewDays'] ?? 0).toDouble();
+                final progress = est > 0
+                    ? (consumed / est).clamp(0.0, 1.0)
+                    : 0.0;
+                final people = List<String>.from(
+                  areaData['assignedPeople'] ?? [],
+                );
+                final isDone = progress >= 1.0;
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey[200]!),
+                  ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () {
+                      _showAreaDetailSheet(
+                        areaDoc.id,
+                        areaData,
+                        projectId,
+                        projectName,
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      child: Row(
+                        children: [
+                          // Status icon
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: isDone
+                                  ? Colors.green.withValues(alpha: 0.1)
+                                  : Colors.black87.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              isDone ? Icons.check : Icons.construction,
+                              size: 16,
+                              color: isDone ? Colors.green : Colors.black54,
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          Icons.chevron_right,
-                          size: 18,
-                          color: Colors.grey[400],
-                        ),
-                      ],
+                          const SizedBox(width: 12),
+                          // Area name + people
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  areaName,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  people.isEmpty
+                                      ? tr('No one assigned', 'Nadie asignado')
+                                      : tr(
+                                          '${people.length} ${people.length == 1 ? 'person' : 'people'} assigned',
+                                          '${people.length} ${people.length == 1 ? 'persona asignada' : 'personas asignadas'}',
+                                        ),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey[500],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Crew days pill
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isDone
+                                  ? Colors.green.withValues(alpha: 0.1)
+                                  : Colors.grey[100],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              isDone
+                                  ? tr('Done', 'Terminado')
+                                  : tr(
+                                      '${(est - consumed).toStringAsFixed(1)} days',
+                                      '${(est - consumed).toStringAsFixed(1)} días',
+                                    ),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: isDone ? Colors.green : Colors.black87,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.chevron_right,
+                            size: 18,
+                            color: Colors.grey[400],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              );
-            }).toList(),
+                );
+              }).toList(),
+            ),
           ),
         ),
       );
@@ -1457,7 +1510,9 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
             .where('role', whereIn: ['installer', 'junior_installer', 'helper'])
             .snapshots(),
         builder: (context, snapshot) {
-          final workers = snapshot.data?.docs ?? [];
+          // Alphabetical by name so the list is easy to scan.
+          final workers = (snapshot.data?.docs ?? []).toList()
+            ..sort((a, b) => _nameOf(a).compareTo(_nameOf(b)));
 
           return StreamBuilder<DocumentSnapshot>(
             stream: _db.collection('projects').doc(projectId).snapshots(),
@@ -1854,7 +1909,9 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                       )
                       .snapshots(),
                   builder: (context, snapshot) {
-                    var users = snapshot.data?.docs ?? [];
+                    // Alphabetical by name so the list is easy to scan.
+                    var users = (snapshot.data?.docs ?? []).toList()
+                      ..sort((a, b) => _nameOf(a).compareTo(_nameOf(b)));
 
                     // Foremen only see workers assigned to this site
                     if (widget.user.role == 'foreman' &&
@@ -2184,6 +2241,12 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
 
   /// Display label for a stored role value.
   String _roleLabel(String role) => AppStrings.role(role);
+
+  /// Lower-cased user name for sorting worker lists alphabetically.
+  String _nameOf(DocumentSnapshot doc) =>
+      ((doc.data() as Map<String, dynamic>?)?['name'] ?? '')
+          .toString()
+          .toLowerCase();
 
   /// Display label for a stored project status (never saved back).
   String _statusLabel(String status) {

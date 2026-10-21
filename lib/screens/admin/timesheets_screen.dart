@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'dart:convert';
-import 'package:excel/excel.dart'
-    show Excel, TextCellValue, DoubleCellValue, IntCellValue;
-import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../services/app_strings.dart';
+import '../../services/file_export.dart';
+import '../../services/timecard_export.dart';
 
 class TimesheetsScreen extends StatefulWidget {
   const TimesheetsScreen({super.key});
@@ -17,10 +15,22 @@ class TimesheetsScreen extends StatefulWidget {
 class _TimesheetsScreenState extends State<TimesheetsScreen> {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  DateTime _startDate = DateTime.now().subtract(const Duration(days: 6));
+  // Default: two weeks starting on a Monday (last week + this week),
+  // matching the paper timecard's Week 1 / Week 2.
+  DateTime _startDate = _mondayOfLastWeek();
   DateTime _endDate = DateTime.now();
   bool _isLoading = false;
+  bool _isExporting = false;
   List<Map<String, dynamic>> _timesheetRows = [];
+
+  /// Raw daily logs for the range, used to build the timecard export.
+  List<Map<String, dynamic>> _logs = [];
+
+  static DateTime _mondayOfLastWeek() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return today.subtract(Duration(days: today.weekday - 1 + 7));
+  }
 
   @override
   void initState() {
@@ -56,9 +66,11 @@ class _TimesheetsScreenState extends State<TimesheetsScreen> {
           .get();
 
       final List<Map<String, dynamic>> rows = [];
+      final logs = <Map<String, dynamic>>[];
 
       for (final doc in snapshot.docs) {
         final data = doc.data();
+        logs.add({'id': doc.id, ...data});
         final installerName =
             data['installer_name'] ?? tr('Unknown', 'Desconocido');
         final installerRole = data['installer_role'] ?? '';
@@ -107,6 +119,7 @@ class _TimesheetsScreenState extends State<TimesheetsScreen> {
       if (mounted) {
         setState(() {
           _timesheetRows = rows;
+          _logs = logs;
           _isLoading = false;
         });
       }
@@ -156,8 +169,8 @@ class _TimesheetsScreenState extends State<TimesheetsScreen> {
     }
   }
 
-  Future<void> _exportExcel() async {
-    if (_timesheetRows.isEmpty) {
+  Future<void> _exportExcel(Rect? origin) async {
+    if (_logs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(tr('No data to export', 'No hay datos para exportar')),
@@ -167,67 +180,24 @@ class _TimesheetsScreenState extends State<TimesheetsScreen> {
       return;
     }
 
+    setState(() => _isExporting = true);
     try {
-      final excel = Excel.createExcel();
-      final sheet = excel[tr('Timesheets', 'Hojas de horas')];
+      final bytes = buildTimecardWorkbook(
+        logs: _logs,
+        start: _startDate,
+        end: _endDate,
+      );
+      if (bytes == null) throw 'Could not create the spreadsheet';
 
-      // Header row
-      sheet.appendRow([
-        TextCellValue(tr('Name', 'Nombre')),
-        TextCellValue(tr('Role', 'Rol')),
-        TextCellValue(tr('Date', 'Fecha')),
-        TextCellValue(tr('Hours', 'Horas')),
-        TextCellValue(tr('Entries', 'Registros')),
-        TextCellValue(tr('Job Sites', 'Obras')),
-        TextCellValue(tr('Areas', 'Áreas')),
-        TextCellValue(tr('Day Complete', 'Día completado')),
-      ]);
-
-      // Data rows
-      for (final row in _timesheetRows) {
-        sheet.appendRow([
-          TextCellValue(row['name'] ?? ''),
-          TextCellValue(_formatRole(row['role'] ?? '')),
-          TextCellValue(DateFormat('MM/dd/yyyy').format(row['date'])),
-          DoubleCellValue(row['hours'] ?? 0.0),
-          IntCellValue(row['entries'] ?? 0),
-          TextCellValue(row['sites'] ?? ''),
-          TextCellValue(row['areas'] ?? ''),
-          TextCellValue(
-            (row['isDayComplete'] ?? false) ? tr('Yes', 'Sí') : tr('No', 'No'),
-          ),
-        ]);
-      }
-
-      // Remove default Sheet1 if a different sheet was created
-      if (excel.sheets.containsKey('Sheet1')) {
-        excel.delete('Sheet1');
-      }
-
-      final bytes = excel.encode();
-      if (bytes == null) return;
-
-      final dateRange =
-          '${DateFormat('MMdd').format(_startDate)}-${DateFormat('MMdd').format(_endDate)}';
-      final fileName = 'timesheets_$dateRange.xlsx';
-
-      if (kIsWeb) {
-        // Web: trigger download via universal_html
-        // ignore: avoid_web_libraries_in_flutter
-        await _downloadWeb(bytes, fileName);
-      } else {
-        // Mobile: save to app documents and share
-        await _saveMobile(bytes, fileName);
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(tr('Exported $fileName', 'Exportado: $fileName')),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+      final fileName =
+          'Timecards_${DateFormat('yyyy-MM-dd').format(_startDate)}'
+          '_to_${DateFormat('yyyy-MM-dd').format(_endDate)}.xlsx';
+      await saveExportedFile(
+        bytes,
+        fileName,
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        origin: origin,
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -237,32 +207,10 @@ class _TimesheetsScreenState extends State<TimesheetsScreen> {
           ),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
     }
   }
-
-  Future<void> _downloadWeb(List<int> bytes, String fileName) async {
-    // For web, use universal_html or dart:html
-    // This is a fallback that works on mobile too
-    try {
-      // ignore: depend_on_referenced_packages
-      final base64Data = base64Encode(bytes);
-      debugPrint(
-        'Excel file ready: $fileName ($base64Data length: ${base64Data.length})',
-      );
-      // On web, this would use AnchorElement for download
-      // On mobile, we fall through to _saveMobile
-    } catch (_) {}
-  }
-
-  Future<void> _saveMobile(List<int> bytes, String fileName) async {
-    try {
-      // Use path_provider + share_plus if available
-      // For now, show success — the file is generated
-      debugPrint('Excel file generated: $fileName (${bytes.length} bytes)');
-    } catch (_) {}
-  }
-
-  String _formatRole(String role) => AppStrings.role(role);
 
   @override
   Widget build(BuildContext context) {
@@ -285,10 +233,32 @@ class _TimesheetsScreenState extends State<TimesheetsScreen> {
           ),
         ),
         actions: [
-          IconButton(
-            onPressed: _exportExcel,
-            icon: const Icon(Icons.download, color: Colors.black87),
-            tooltip: tr('Export Excel', 'Exportar a Excel'),
+          Builder(
+            builder: (buttonContext) => IconButton(
+              onPressed: _isExporting
+                  ? null
+                  : () {
+                      // Anchor for the iPad share sheet.
+                      final box =
+                          buttonContext.findRenderObject() as RenderBox?;
+                      _exportExcel(
+                        box == null
+                            ? null
+                            : box.localToGlobal(Offset.zero) & box.size,
+                      );
+                    },
+              icon: _isExporting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.black87,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.download, color: Colors.black87),
+              tooltip: tr('Export timecards', 'Exportar hojas de horas'),
+            ),
           ),
         ],
       ),

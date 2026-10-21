@@ -142,141 +142,151 @@ class _InstallerLogScreenState extends State<InstallerLogScreen>
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          leading: Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: Colors.deepOrange.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+        child: Material(
+          // Draws the tap highlight above the colored card.
+          type: MaterialType.transparency,
+          child: ExpansionTile(
+            tilePadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 4,
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  clockIn != null ? DateFormat('d').format(clockIn) : '--',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.deepOrange,
-                  ),
-                ),
-                Text(
-                  clockIn != null
-                      ? DateFormat('MMM', AppStrings.dateLocale).format(clockIn)
-                      : '',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.deepOrange,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          title: Text(
-            dateStr,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-          ),
-          subtitle: Row(
-            children: [
-              _buildMiniStat(
-                Icons.straighten,
-                tr(
-                  '${totalSqft.toStringAsFixed(0)} sqft',
-                  '${totalSqft.toStringAsFixed(0)} pies²',
-                ),
+            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            leading: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.deepOrange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(width: 12),
-              _buildMiniStat(Icons.schedule, hoursWorked),
-            ],
-          ),
-          children: [
-            // Time details
-            _buildDetailRow(
-              tr('Clock In', 'Entrada'),
-              clockIn != null ? _formatTime(clockIn) : '--',
-              Icons.login_rounded,
-              Colors.green,
-            ),
-            _buildDetailRow(
-              tr('Clock Out', 'Salida'),
-              clockOut != null ? _formatTime(clockOut) : '--',
-              Icons.logout_rounded,
-              Colors.red,
-            ),
-            _buildDetailRow(
-              tr('Hours Worked', 'Horas Trabajadas'),
-              hoursWorked,
-              Icons.timer_outlined,
-              Colors.blue,
-            ),
-            const Divider(height: 24),
-
-            // Sqft breakdown
-            _buildDetailRow(
-              tr('Morning Sqft', 'Pies² en la Mañana'),
-              tr(
-                '${morningSqft.toStringAsFixed(1)} sqft',
-                '${morningSqft.toStringAsFixed(1)} pies²',
-              ),
-              Icons.wb_sunny_outlined,
-              Colors.orange,
-            ),
-            _buildDetailRow(
-              tr('Afternoon Sqft', 'Pies² en la Tarde'),
-              tr(
-                '${afternoonSqft.toStringAsFixed(1)} sqft',
-                '${afternoonSqft.toStringAsFixed(1)} pies²',
-              ),
-              Icons.wb_twilight,
-              Colors.deepPurple,
-            ),
-            _buildDetailRow(
-              tr('Total Sqft', 'Total de Pies²'),
-              tr(
-                '${totalSqft.toStringAsFixed(1)} sqft',
-                '${totalSqft.toStringAsFixed(1)} pies²',
-              ),
-              Icons.straighten,
-              Colors.deepOrange,
-            ),
-
-            // Photos
-            if (morningPhotoUrl != null || afternoonPhotoUrl != null) ...[
-              const Divider(height: 24),
-              Text(
-                tr('Progress Photos', 'Fotos de Avance'),
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (morningPhotoUrl != null)
-                    Expanded(
-                      child: _buildPhotoThumbnail(
-                        tr('Morning', 'Mañana'),
-                        morningPhotoUrl,
-                      ),
+                  Text(
+                    clockIn != null ? DateFormat('d').format(clockIn) : '--',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.deepOrange,
                     ),
-                  if (morningPhotoUrl != null && afternoonPhotoUrl != null)
-                    const SizedBox(width: 10),
-                  if (afternoonPhotoUrl != null)
-                    Expanded(
-                      child: _buildPhotoThumbnail(
-                        tr('Afternoon', 'Tarde'),
-                        afternoonPhotoUrl,
-                      ),
+                  ),
+                  Text(
+                    clockIn != null
+                        ? DateFormat(
+                            'MMM',
+                            AppStrings.dateLocale,
+                          ).format(clockIn)
+                        : '',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.deepOrange,
                     ),
+                  ),
                 ],
               ),
+            ),
+            title: Text(
+              dateStr,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+            subtitle: Row(
+              children: [
+                _buildMiniStat(
+                  Icons.straighten,
+                  tr(
+                    '${totalSqft.toStringAsFixed(0)} sqft',
+                    '${totalSqft.toStringAsFixed(0)} pies²',
+                  ),
+                ),
+                const SizedBox(width: 12),
+                _buildMiniStat(Icons.schedule, hoursWorked),
+              ],
+            ),
+            children: [
+              // Time details
+              _buildDetailRow(
+                tr('Clock In', 'Entrada'),
+                clockIn != null ? _formatTime(clockIn) : '--',
+                Icons.login_rounded,
+                Colors.green,
+              ),
+              _buildDetailRow(
+                tr('Clock Out', 'Salida'),
+                clockOut != null ? _formatTime(clockOut) : '--',
+                Icons.logout_rounded,
+                Colors.red,
+              ),
+              _buildDetailRow(
+                tr('Hours Worked', 'Horas Trabajadas'),
+                hoursWorked,
+                Icons.timer_outlined,
+                Colors.blue,
+              ),
+              const Divider(height: 24),
+
+              // Sqft breakdown
+              _buildDetailRow(
+                tr('Morning Sqft', 'Pies² en la Mañana'),
+                tr(
+                  '${morningSqft.toStringAsFixed(1)} sqft',
+                  '${morningSqft.toStringAsFixed(1)} pies²',
+                ),
+                Icons.wb_sunny_outlined,
+                Colors.orange,
+              ),
+              _buildDetailRow(
+                tr('Afternoon Sqft', 'Pies² en la Tarde'),
+                tr(
+                  '${afternoonSqft.toStringAsFixed(1)} sqft',
+                  '${afternoonSqft.toStringAsFixed(1)} pies²',
+                ),
+                Icons.wb_twilight,
+                Colors.deepPurple,
+              ),
+              _buildDetailRow(
+                tr('Total Sqft', 'Total de Pies²'),
+                tr(
+                  '${totalSqft.toStringAsFixed(1)} sqft',
+                  '${totalSqft.toStringAsFixed(1)} pies²',
+                ),
+                Icons.straighten,
+                Colors.deepOrange,
+              ),
+
+              // Photos
+              if (morningPhotoUrl != null || afternoonPhotoUrl != null) ...[
+                const Divider(height: 24),
+                Text(
+                  tr('Progress Photos', 'Fotos de Avance'),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    if (morningPhotoUrl != null)
+                      Expanded(
+                        child: _buildPhotoThumbnail(
+                          tr('Morning', 'Mañana'),
+                          morningPhotoUrl,
+                        ),
+                      ),
+                    if (morningPhotoUrl != null && afternoonPhotoUrl != null)
+                      const SizedBox(width: 10),
+                    if (afternoonPhotoUrl != null)
+                      Expanded(
+                        child: _buildPhotoThumbnail(
+                          tr('Afternoon', 'Tarde'),
+                          afternoonPhotoUrl,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

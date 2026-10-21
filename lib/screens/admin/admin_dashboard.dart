@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import '../../models/user_model.dart';
 import '../../services/app_strings.dart';
 import '../../services/auth_service.dart';
-import '../../widgets/language_toggle.dart';
 import '../auth/login_screen.dart';
 import 'excel_import_widget.dart';
 import 'timesheets_screen.dart';
@@ -47,6 +46,129 @@ class _AdminDashboardState extends State<AdminDashboard> {
         });
       }
     } catch (_) {}
+  }
+
+  /// "$800" or "$812.50".
+  String _fmtRate(double rate) => rate == rate.roundToDouble()
+      ? NumberFormat('#,##0', 'en_US').format(rate)
+      : NumberFormat('#,##0.00', 'en_US').format(rate);
+
+  /// Lets the admin set the cost of one crew day. Every cost on the
+  /// dashboard (spent, remaining, budgets) is crew days × this rate.
+  Future<void> _editCrewDayRate() async {
+    final controller = TextEditingController(
+      text: _crewDayRate == _crewDayRate.roundToDouble()
+          ? _crewDayRate.toStringAsFixed(0)
+          : _crewDayRate.toStringAsFixed(2),
+    );
+    String? error;
+
+    final newRate = await showDialog<double>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          void submit() {
+            final value = double.tryParse(
+              controller.text.replaceAll(RegExp(r'[\$,\s]'), ''),
+            );
+            if (value == null || value <= 0) {
+              setDialogState(
+                () => error = tr(
+                  'Enter an amount greater than 0',
+                  'Ingresa una cantidad mayor que 0',
+                ),
+              );
+              return;
+            }
+            Navigator.pop(dialogContext, value);
+          }
+
+          return AlertDialog(
+            title: Text(tr('Crew day rate', 'Tarifa por día de equipo')),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tr(
+                    'The cost of one crew day. All costs and budgets on the dashboard are calculated from it.',
+                    'El costo de un día de equipo. Todos los costos y presupuestos del panel se calculan con este valor.',
+                  ),
+                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: InputDecoration(
+                    prefixText: '\$ ',
+                    suffixText: tr('per crew day', 'por día de equipo'),
+                    errorText: error,
+                    border: const OutlineInputBorder(),
+                  ),
+                  onSubmitted: (_) => submit(),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text(AppStrings.cancel),
+              ),
+              ElevatedButton(
+                onPressed: submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black87,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text(AppStrings.save),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    controller.dispose();
+    if (newRate == null || !mounted) return;
+
+    final previous = _crewDayRate;
+    setState(() => _crewDayRate = newRate);
+    try {
+      await _db.collection('settings').doc('global').set({
+        'crewDayRate': newRate,
+        'crewDayRateUpdatedAt': FieldValue.serverTimestamp(),
+        'crewDayRateUpdatedBy': widget.user.name,
+      }, SetOptions(merge: true));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr(
+              'Crew day rate set to \$${_fmtRate(newRate)}',
+              'Tarifa por día de equipo: \$${_fmtRate(newRate)}',
+            ),
+          ),
+          backgroundColor: Colors.black87,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _crewDayRate = previous);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr(
+              'Could not save the rate: $e',
+              'No se pudo guardar la tarifa: $e',
+            ),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -131,9 +253,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          LanguageToggle(color: Colors.grey[700]),
-          const SizedBox(width: 4),
+          const SizedBox(width: 12),
           IconButton(
             onPressed: () {
               Navigator.push(
@@ -144,10 +264,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
             icon: Icon(Icons.assignment, size: 20, color: Colors.grey[500]),
             tooltip: tr('Timesheets', 'Hojas de horas'),
           ),
-          IconButton(
+          const SizedBox(width: 8),
+          OutlinedButton(
             onPressed: _logout,
-            icon: Icon(Icons.logout, size: 20, color: Colors.grey[500]),
-            tooltip: AppStrings.signOut,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.black87,
+              side: BorderSide(color: Colors.grey[400]!),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(AppStrings.signOut),
           ),
         ],
       ),
@@ -226,8 +354,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     Expanded(
                       child: _kpiCard(
                         tr('Crew day rate', 'Tarifa por día de equipo'),
-                        '\$${_crewDayRate.toStringAsFixed(0)}',
-                        tr('per crew day', 'por día de equipo'),
+                        '\$${_fmtRate(_crewDayRate)}',
+                        tr(
+                          'per crew day · tap to edit',
+                          'por día de equipo · toca para editar',
+                        ),
+                        onTap: _editCrewDayRate,
                       ),
                     ),
                   ],
@@ -1949,17 +2081,30 @@ class _AdminDashboardState extends State<AdminDashboard> {
     String sub, {
     bool isRed = false,
     bool isGreen = false,
+    VoidCallback? onTap,
   }) {
-    return Container(
+    final card = Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.grey[50],
         borderRadius: BorderRadius.circular(8),
+        border: onTap == null ? null : Border.all(color: Colors.grey[300]!),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                ),
+              ),
+              if (onTap != null)
+                Icon(Icons.edit, size: 14, color: Colors.grey[500]),
+            ],
+          ),
           const SizedBox(height: 4),
           Text(
             value,
@@ -1976,6 +2121,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
           if (sub.isNotEmpty)
             Text(sub, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
         ],
+      ),
+    );
+    if (onTap == null) return card;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: card,
       ),
     );
   }

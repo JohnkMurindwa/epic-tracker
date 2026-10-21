@@ -578,6 +578,8 @@ class _LoginScreenState extends State<LoginScreen> {
           } else {
             dashboard = SupervisorDashboard(user: user);
           }
+          // The admin dashboard is English-only.
+          if (dashboard is AdminDashboard) AppStrings.useEnglishOnly();
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => dashboard),

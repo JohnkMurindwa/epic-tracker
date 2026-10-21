@@ -26,10 +26,16 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Epic Installation uses the camera to capture job site photos and document work progress.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Epic Installation uses your location to track job site clock-ins and verify work locations.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>Epic Stone needs your location to verify you are on the job site.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Epic Stone needs your location to verify you are on the job site when clocking in.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Epic Installation accesses your photos to attach job site images to daily reports.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

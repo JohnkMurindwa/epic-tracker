@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "epic-tracker-5b28b"
-  }
+  },
+  "targets": {
+    "epic-tracker-5b28b": {
+      "hosting": {
+        "admin": [
+          "epic-admin-dashboard"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
