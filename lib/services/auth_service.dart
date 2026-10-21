@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
@@ -24,11 +26,11 @@ class AuthService {
     required String role,
   }) async {
     try {
-      // Create auth account
-      UserCredential result = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      // Create auth account. The timeout stops the sign-up button spinning
+      // forever if Firebase never answers (seen on Android).
+      UserCredential result = await _auth
+          .createUserWithEmailAndPassword(email: email, password: password)
+          .timeout(const Duration(seconds: 20));
 
       // Generate 5 digit PIN for all installation workers
       String pin = '';
@@ -83,6 +85,14 @@ class AuthService {
           );
       }
       return {'success': false, 'message': message};
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message': tr(
+          'No response from the server. Check your connection and try again.',
+          'Sin respuesta del servidor. Revisa tu conexión e inténtalo de nuevo.',
+        ),
+      };
     } catch (e) {
       debugPrint('Sign up error: $e');
       return {
