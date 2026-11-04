@@ -11,6 +11,7 @@ import '../../services/app_strings.dart';
 import 'foreman_crew_roster.dart';
 import 'foreman_time_tab.dart';
 import '../../widgets/missed_clock_out_checker.dart';
+import '../../widgets/off_site_badge.dart';
 
 class SupervisorDashboard extends StatefulWidget {
   final UserModel user;
@@ -357,6 +358,10 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                   'clockOut': entry['clockOut'],
                   'hoursWorked': entry['hoursWorked'],
                   'description': entry['description'],
+                  'clockInOffSite': entry['clockInOffSite'],
+                  'clockInDistanceFt': entry['clockInDistanceFt'],
+                  'clockOutOffSite': entry['clockOutOffSite'],
+                  'clockOutDistanceFt': entry['clockOutDistanceFt'],
                 });
           }
         }
@@ -704,6 +709,13 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                                                           color:
                                                               Colors.grey[500],
                                                         ),
+                                                      ),
+                                                      OffSiteBadge(
+                                                        w,
+                                                        margin:
+                                                            const EdgeInsets.only(
+                                                              top: 4,
+                                                            ),
                                                       ),
                                                       if (description != null &&
                                                           description

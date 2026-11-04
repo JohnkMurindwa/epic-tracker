@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'app_strings.dart';
@@ -66,4 +67,24 @@ Future<Position?> getClockInLocation(BuildContext context) async {
   }
 
   return await Geolocator.getCurrentPosition();
+}
+
+/// Current position for a clock-out, or null if it can't be had quickly.
+/// Never prompts and never throws: an off-site clock-out is flagged for the
+/// supervisor, not blocked.
+Future<GeoPoint?> getLocationQuietly() async {
+  try {
+    if (!await Geolocator.isLocationServiceEnabled()) return null;
+    final permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return null;
+    }
+    final position = await Geolocator.getCurrentPosition().timeout(
+      const Duration(seconds: 10),
+    );
+    return GeoPoint(position.latitude, position.longitude);
+  } catch (_) {
+    return null;
+  }
 }

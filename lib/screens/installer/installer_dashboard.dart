@@ -1353,10 +1353,15 @@ class _InstallerDashboardState extends State<InstallerDashboard>
 
                 Navigator.pop(dialogContext);
 
-                _firestoreService
-                    .clockOutOfArea(
-                      userId: widget.user.id,
-                      description: description,
+                // Location is best effort here: an off-site clock-out is
+                // flagged for the supervisor, never blocked.
+                getLocationQuietly()
+                    .then(
+                      (location) => _firestoreService.clockOutOfArea(
+                        userId: widget.user.id,
+                        description: description,
+                        location: location,
+                      ),
                     )
                     .then((_) {
                       if (!mounted) return;

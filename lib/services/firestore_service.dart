@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:geolocator/geolocator.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -192,6 +193,56 @@ class FirestoreService {
     });
   }
 
+  // ─── SITE LOCATION (geofence) ──────────────────────────────
+
+  /// Radius around a site's pin that counts as "on site" when none is set.
+  static const double defaultSiteRadiusFt = 500;
+
+  /// Pin a job site's location — from a phone standing on site, or admin.
+  Future<void> setProjectLocation({
+    required String projectId,
+    required GeoPoint location,
+    required String setBy,
+    double? radiusFt,
+  }) async {
+    await _db.collection('projects').doc(projectId).update({
+      'siteLocation': location,
+      'siteLocationSetBy': setBy,
+      'siteLocationSetAt': FieldValue.serverTimestamp(),
+      'siteRadiusFt': ?radiusFt,
+    });
+  }
+
+  /// Distance from [here] to the site's pin and whether that is outside the
+  /// site radius, as entry fields `<prefix>DistanceFt` / `<prefix>OffSite`.
+  /// Empty when the site has no pin, or it can't be read (e.g. offline with
+  /// nothing cached) — a clock-in is never blocked by this check.
+  Future<Map<String, dynamic>> _siteCheck(
+    String? projectId,
+    GeoPoint here,
+    String prefix,
+  ) async {
+    if (projectId == null) return {};
+    try {
+      final doc = await _db
+          .collection('projects')
+          .doc(projectId)
+          .get()
+          .timeout(const Duration(seconds: 5));
+      final data = doc.data();
+      final pin = data?['siteLocation'] as GeoPoint?;
+      if (pin == null) return {};
+      final radius = (data?['siteRadiusFt'] ?? defaultSiteRadiusFt).toDouble();
+      final feet = distanceFeet(here, pin);
+      return {
+        '${prefix}DistanceFt': feet.roundToDouble(),
+        '${prefix}OffSite': feet > radius,
+      };
+    } catch (_) {
+      return {};
+    }
+  }
+
   // ─── DAILY LOGS (area-based time tracking) ────────────────
 
   /// Clock in at a specific area. Creates or updates today's daily log.
@@ -229,6 +280,8 @@ class FirestoreService {
       'clockOut': null,
       'description': null,
       'hoursWorked': 0,
+      'clockInLocation': location,
+      ...await _siteCheck(projectId, location, 'clockIn'),
     };
 
     if (existing.docs.isEmpty) {
@@ -262,6 +315,7 @@ class FirestoreService {
   Future<void> clockOutOfArea({
     required String userId,
     required String description,
+    GeoPoint? location,
   }) async {
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
@@ -278,6 +332,7 @@ class FirestoreService {
       userId: userId,
       description: description,
       clockOut: now,
+      location: location,
     );
   }
 
@@ -347,6 +402,7 @@ class FirestoreService {
     required String description,
     required DateTime clockOut,
     bool missed = false,
+    GeoPoint? location,
   }) async {
     final data = doc.data() as Map<String, dynamic>;
     final entries = List<Map<String, dynamic>>.from(data['time_entries'] ?? []);
@@ -390,6 +446,15 @@ class FirestoreService {
       }
     }
 
+    // Where they were when they clocked out (missed clock-outs have none)
+    final siteCheck = location == null
+        ? const <String, dynamic>{}
+        : await _siteCheck(
+            lastEntry['projectId'] as String?,
+            location,
+            'clockOut',
+          );
+
     // Update the entry (with snapshot if available)
     entries[lastIndex] = {
       ...lastEntry,
@@ -397,6 +462,8 @@ class FirestoreService {
       'description': description,
       'hoursWorked': double.parse(hoursWorked.toStringAsFixed(2)),
       if (missed) 'clockOutMissed': true,
+      'clockOutLocation': ?location,
+      ...siteCheck,
       if (crewDaysLeftSnapshot != null)
         'crewDaysLeftAfter': double.parse(
           crewDaysLeftSnapshot.toStringAsFixed(1),
@@ -574,4 +641,20 @@ double sessionHoursWorked({
     }
   }
   return hours < 0 ? 0 : hours;
+}
+
+/// Straight-line distance in feet between two points.
+double distanceFeet(GeoPoint a, GeoPoint b) =>
+    Geolocator.distanceBetween(
+      a.latitude,
+      a.longitude,
+      b.latitude,
+      b.longitude,
+    ) *
+    3.28084;
+
+/// "350 ft" under a quarter mile, otherwise "1.8 mi".
+String formatDistanceFt(num? feet) {
+  final f = (feet ?? 0).toDouble();
+  return f < 1320 ? '${f.round()} ft' : '${(f / 5280).toStringAsFixed(1)} mi';
 }

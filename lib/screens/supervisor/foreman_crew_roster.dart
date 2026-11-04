@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../services/app_strings.dart';
+import '../../widgets/off_site_badge.dart';
 
 /// The foreman's "My Crew" list: the foreman plus everyone assigned to their
 /// job sites (by the supervisor) or to an area on those sites (by the
@@ -315,6 +316,11 @@ class ForemanCrewRoster extends StatelessWidget {
                         : Colors.black87,
                   ),
                 ),
+                if (m.flaggedEntry != null)
+                  OffSiteBadge(
+                    m.flaggedEntry!,
+                    margin: const EdgeInsets.only(top: 4),
+                  ),
                 if (!m.isMe)
                   Text(
                     m.assignedArea == null
@@ -435,6 +441,14 @@ class _Member {
     return entries.isNotEmpty && entries.last['clockOut'] == null
         ? entries.last
         : null;
+  }
+
+  /// The most recent entry that was clocked in or out off site, if any.
+  Map<String, dynamic>? get flaggedEntry {
+    for (final e in _entries.reversed) {
+      if (OffSiteBadge.isOffSite(e)) return e;
+    }
+    return null;
   }
 
   double get hours => _entries.fold(

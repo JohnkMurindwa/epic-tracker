@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../services/app_strings.dart';
+import '../../widgets/off_site_badge.dart';
 import '../../services/file_export.dart';
 import '../../services/timecard_export.dart';
 
@@ -82,9 +83,11 @@ class _TimesheetsScreenState extends State<TimesheetsScreen> {
         double totalHours = 0;
         final List<String> sites = [];
         final List<String> areas = [];
+        int offSite = 0;
 
         for (final entry in entries) {
           totalHours += (entry['hoursWorked'] ?? 0).toDouble();
+          if (OffSiteBadge.isOffSite(entry)) offSite++;
           final siteName = entry['projectName'] as String? ?? '';
           final areaName = entry['areaName'] as String? ?? '';
           if (siteName.isNotEmpty && !sites.contains(siteName)) {
@@ -96,6 +99,7 @@ class _TimesheetsScreenState extends State<TimesheetsScreen> {
         }
 
         rows.add({
+          'offSite': offSite,
           'name': installerName,
           'role': installerRole,
           'date': logDate,
@@ -445,6 +449,31 @@ class _TimesheetsScreenState extends State<TimesheetsScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                if ((row['offSite'] as int? ?? 0) > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.warning_amber_rounded,
+                          size: 13,
+                          color: Colors.red,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          tr(
+                            '${row['offSite']} off-site clock in/out',
+                            '${row['offSite']} entrada/salida fuera de la obra',
+                          ),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.red,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),

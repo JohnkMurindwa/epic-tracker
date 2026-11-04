@@ -165,9 +165,10 @@ class _ForemanTimeTabState extends State<ForemanTimeTab> {
     if (confirmed != true || !mounted) return;
     await _run(
       'clockOut',
-      () => _firestoreService.clockOutOfArea(
+      () async => _firestoreService.clockOutOfArea(
         userId: widget.user.id,
         description: '',
+        location: await getLocationQuietly(),
       ),
       tr('Clocked out', 'Salida registrada'),
     );
