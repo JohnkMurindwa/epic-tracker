@@ -1167,6 +1167,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+                const SizedBox(width: 12),
+                OutlinedButton.icon(
+                  onPressed: _showAddAreaDialog,
+                  icon: const Icon(Icons.add, size: 16),
+                  label: Text(
+                    tr('Add Area', 'Agregar área'),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.black87,
+                    side: const BorderSide(color: Colors.black87),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
                 const Spacer(),
                 Container(
                   decoration: BoxDecoration(
@@ -1677,8 +1693,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 Expanded(
                   child: _kpiCard(
                     tr('Estimated', 'Estimado'),
-                    '${est.toStringAsFixed(0)}',
+                    '${est.toStringAsFixed(est == est.roundToDouble() ? 0 : 2)}',
                     tr('crew days', 'días de equipo'),
+                    onTap: () => _showEditCrewDaysDialog(
+                      areaSnap.data!.id,
+                      _selectedAreaName ?? '',
+                      est,
+                      consumed,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1696,13 +1718,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _kpiCard(
-                    tr('Remaining', 'Restante'),
-                    '${remaining.toStringAsFixed(1)}',
-                    tr(
-                      '\$${_fmt(costRemaining)} left',
-                      '\$${_fmt(costRemaining)} restante',
-                    ),
-                    isGreen: true,
+                    remaining < 0
+                        ? tr('Over budget', 'Sobre presupuesto')
+                        : tr('Remaining', 'Restante'),
+                    '${remaining.abs().toStringAsFixed(1)}',
+                    remaining < 0
+                        ? tr(
+                            '\$${_fmt(-costRemaining)} over',
+                            '\$${_fmt(-costRemaining)} de más',
+                          )
+                        : tr(
+                            '\$${_fmt(costRemaining)} left',
+                            '\$${_fmt(costRemaining)} restante',
+                          ),
+                    isRed: remaining < 0,
+                    isGreen: remaining >= 0,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1753,6 +1783,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
             ),
             const SizedBox(height: 16),
+
+            // Budget history (change orders / manual edits)
+            if ((aData['changeLog'] as List?)?.isNotEmpty ?? false) ...[
+              _buildChangeLog(List<Map<String, dynamic>>.from(
+                (aData['changeLog'] as List).map(
+                  (e) => Map<String, dynamic>.from(e as Map),
+                ),
+              )),
+              const SizedBox(height: 16),
+            ],
 
             // Current crew
             Row(
@@ -2074,6 +2114,379 @@ class _AdminDashboardState extends State<AdminDashboard> {
   // ═══════════════════════════════════════════════════════════
   // SHARED WIDGETS
   // ═══════════════════════════════════════════════════════════
+
+  // ─── Change orders: edit crew days / add area ──────────────
+
+  /// Change an area's crew-day budget in place. Consumed hours and the crew
+  /// are untouched; if the new total is below what's already used, the area
+  /// simply shows over budget. Every change is appended to the area's
+  /// changeLog with the CO reference and note.
+  Future<void> _showEditCrewDaysDialog(
+    String areaId,
+    String areaName,
+    double current,
+    double consumed,
+  ) async {
+    final daysCtrl = TextEditingController(
+      text: current == current.roundToDouble()
+          ? current.toStringAsFixed(0)
+          : current.toStringAsFixed(2),
+    );
+    final coCtrl = TextEditingController();
+    final noteCtrl = TextEditingController();
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final newTotal = double.tryParse(daysCtrl.text.trim());
+          final remaining = newTotal == null ? null : newTotal - consumed;
+          return AlertDialog(
+            title: Text(tr('Edit crew days', 'Editar días de equipo')),
+            content: SizedBox(
+              width: 380,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    areaName,
+                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: daysCtrl,
+                    autofocus: true,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    onChanged: (_) => setDialogState(() {}),
+                    decoration: InputDecoration(
+                      labelText: tr('Crew days', 'Días de equipo'),
+                      helperText: tr(
+                        'Was ${current.toStringAsFixed(2)} · ${consumed.toStringAsFixed(1)} already used',
+                        'Era ${current.toStringAsFixed(2)} · ${consumed.toStringAsFixed(1)} ya usados',
+                      ),
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                  if (remaining != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      remaining < 0
+                          ? tr(
+                              'Over budget by ${(-remaining).toStringAsFixed(1)} crew days',
+                              'Sobre presupuesto por ${(-remaining).toStringAsFixed(1)} días',
+                            )
+                          : tr(
+                              '${remaining.toStringAsFixed(1)} crew days left after this change',
+                              '${remaining.toStringAsFixed(1)} días restantes tras el cambio',
+                            ),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: remaining < 0
+                            ? const Color(0xFFA32D2D)
+                            : const Color(0xFF0F6E56),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: coCtrl,
+                    decoration: InputDecoration(
+                      labelText: tr('Change order #', 'Orden de cambio #'),
+                      hintText: 'CO2',
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: noteCtrl,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      labelText: tr('Note', 'Nota'),
+                      hintText: tr(
+                        'e.g. Client added tile under cabinets (+26 sq ft)',
+                        'p. ej. Cliente agregó azulejo bajo gabinetes',
+                      ),
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: Text(AppStrings.cancel),
+              ),
+              ElevatedButton(
+                onPressed: newTotal == null || newTotal < 0 || newTotal == current
+                    ? null
+                    : () => Navigator.pop(dialogContext, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black87,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text(AppStrings.save),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (saved != true) return;
+
+    final newTotal = double.parse(daysCtrl.text.trim());
+    await _db.collection('areas').doc(areaId).update({
+      'totalCrewDays': newTotal,
+      'changeLog': FieldValue.arrayUnion([
+        _changeEntry(from: current, to: newTotal, co: coCtrl.text, note: noteCtrl.text),
+      ]),
+    });
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          tr(
+            'Crew days updated: ${current.toStringAsFixed(2)} → ${newTotal.toStringAsFixed(2)}',
+            'Días actualizados: ${current.toStringAsFixed(2)} → ${newTotal.toStringAsFixed(2)}',
+          ),
+        ),
+        backgroundColor: Colors.black87,
+      ),
+    );
+  }
+
+  /// Add an area to the level being viewed — the "new area" kind of change
+  /// order (e.g. CO1 — Laundry baseboard).
+  Future<void> _showAddAreaDialog() async {
+    final siteId = _selectedSiteId;
+    final level = _selectedLevel;
+    if (siteId == null || level == null) return;
+
+    // Existing codes on this site: to suggest the next CO number and to
+    // refuse duplicates.
+    final existing = await _db
+        .collection('areas')
+        .where('projectId', isEqualTo: siteId)
+        .get();
+    final codes = <String>{};
+    var maxCo = 0;
+    for (final d in existing.docs) {
+      final name = (d.data()['name'] ?? '') as String;
+      final code = (d.data()['code'] as String?) ??
+          (name.contains(' — ') ? name.split(' — ').first : name);
+      codes.add(code.trim().toUpperCase());
+      final m = RegExp(r'^CO(\d+)$', caseSensitive: false).firstMatch(code.trim());
+      if (m != null) maxCo = maxCo < int.parse(m.group(1)!) ? int.parse(m.group(1)!) : maxCo;
+    }
+    if (!mounted) return;
+
+    final codeCtrl = TextEditingController(text: 'CO${maxCo + 1}');
+    final nameCtrl = TextEditingController();
+    final daysCtrl = TextEditingController();
+    final noteCtrl = TextEditingController();
+    String? error;
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final code = codeCtrl.text.trim().toUpperCase();
+          final days = double.tryParse(daysCtrl.text.trim());
+          final valid = RegExp(r'^(A|CO)\d+$').hasMatch(code) &&
+              nameCtrl.text.trim().isNotEmpty &&
+              days != null &&
+              days >= 0 &&
+              !codes.contains(code);
+          error = codes.contains(code)
+              ? tr('$code already exists on this site', '$code ya existe en esta obra')
+              : null;
+          return AlertDialog(
+            title: Text(tr('Add area to $level', 'Agregar área a $level')),
+            content: SizedBox(
+              width: 380,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 110,
+                        child: TextField(
+                          controller: codeCtrl,
+                          textCapitalization: TextCapitalization.characters,
+                          onChanged: (_) => setDialogState(() {}),
+                          decoration: InputDecoration(
+                            labelText: tr('Code', 'Código'),
+                            errorText: error,
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: daysCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          onChanged: (_) => setDialogState(() {}),
+                          decoration: InputDecoration(
+                            labelText: tr('Crew days', 'Días de equipo'),
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: nameCtrl,
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.characters,
+                    onChanged: (_) => setDialogState(() {}),
+                    decoration: InputDecoration(
+                      labelText: tr('Area name', 'Nombre del área'),
+                      hintText: tr(
+                        'e.g. LOWER LEVEL LAUNDRY BASEBOARD',
+                        'p. ej. ZÓCALO LAVANDERÍA NIVEL BAJO',
+                      ),
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: noteCtrl,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      labelText: tr('Note', 'Nota'),
+                      hintText: tr(
+                        'What the change order covers',
+                        'Qué cubre la orden de cambio',
+                      ),
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: Text(AppStrings.cancel),
+              ),
+              ElevatedButton(
+                onPressed: valid ? () => Navigator.pop(dialogContext, true) : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black87,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text(tr('Add Area', 'Agregar área')),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (saved != true) return;
+
+    final code = codeCtrl.text.trim().toUpperCase();
+    final name = nameCtrl.text.trim();
+    final days = double.parse(daysCtrl.text.trim());
+    await _db.collection('areas').add({
+      'projectId': siteId,
+      'projectName': _selectedSiteName ?? '',
+      'levelName': level,
+      'code': code,
+      'name': '$code — $name',
+      'totalCrewDays': days,
+      'consumedCrewDays': 0.0,
+      'assignedPeople': <String>[],
+      'status': 'active',
+      'createdAt': FieldValue.serverTimestamp(),
+      'changeLog': [
+        _changeEntry(from: null, to: days, co: code.startsWith('CO') ? code : '', note: noteCtrl.text),
+      ],
+    });
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(tr('Added $code — $name', 'Se agregó $code — $name')),
+        backgroundColor: Colors.black87,
+      ),
+    );
+  }
+
+  Map<String, dynamic> _changeEntry({
+    required double? from,
+    required double to,
+    required String co,
+    required String note,
+  }) => {
+    'from': from,
+    'to': to,
+    'coRef': co.trim(),
+    'note': note.trim(),
+    'by': widget.user.name,
+    'at': Timestamp.now(),
+  };
+
+  /// "Budget history" list for an area: original → each change order.
+  Widget _buildChangeLog(List<Map<String, dynamic>> log) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            tr('Budget history', 'Historial del presupuesto'),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          for (final e in log.reversed)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    e['from'] == null
+                        ? tr('New · ${(e['to'] as num).toStringAsFixed(2)}',
+                            'Nueva · ${(e['to'] as num).toStringAsFixed(2)}')
+                        : '${(e['from'] as num).toStringAsFixed(2)} → ${(e['to'] as num).toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      [
+                        if ((e['coRef'] ?? '').toString().isNotEmpty) e['coRef'],
+                        if ((e['note'] ?? '').toString().isNotEmpty) e['note'],
+                        if (e['at'] is Timestamp)
+                          DateFormat('MMM d, yyyy', AppStrings.dateLocale)
+                              .format((e['at'] as Timestamp).toDate()),
+                        if ((e['by'] ?? '').toString().isNotEmpty) e['by'],
+                      ].join(' · '),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 
   Widget _kpiCard(
     String label,
