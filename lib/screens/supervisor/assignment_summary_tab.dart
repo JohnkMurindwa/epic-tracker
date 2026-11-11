@@ -77,7 +77,8 @@ class AssignmentSummaryTab extends StatelessWidget {
     final sorted = projects.where((p) {
       final data = p.data() as Map<String, dynamic>;
       return List.from(data['assignedWorkers'] ?? []).isNotEmpty ||
-          List.from(data['assignedForemen'] ?? []).isNotEmpty;
+          List.from(data['assignedForemen'] ?? []).isNotEmpty ||
+          (areaOf[p.id]?.isNotEmpty ?? false);
     }).toList()
       ..sort((a, b) {
         final an = ((a.data() as Map<String, dynamic>)['name'] ?? '') as String;
@@ -89,6 +90,7 @@ class AssignmentSummaryTab extends StatelessWidget {
     for (final p in sorted) {
       final data = p.data() as Map<String, dynamic>;
       allAssigned.addAll(List<String>.from(data['assignedWorkers'] ?? []));
+      allAssigned.addAll((areaOf[p.id] ?? const {}).keys);
       if (List.from(data['assignedForemen'] ?? []).isEmpty) {
         sitesWithoutForeman++;
       }
@@ -174,8 +176,12 @@ class AssignmentSummaryTab extends StatelessWidget {
         .where((n) => n.isNotEmpty)
         .join(', ');
 
-    // Crew sorted: workers with an area first (by area), then the rest.
-    final workerIds = List<String>.from(data['assignedWorkers'] ?? [])
+    // Crew: the site pool plus anyone assigned to one of its areas, with
+    // area-assigned workers first, then the rest.
+    final workerIds = <String>{
+      ...List<String>.from(data['assignedWorkers'] ?? []),
+      ...areaOfWorker.keys,
+    }.toList()
       ..sort((a, b) {
         final aHas = areaOfWorker.containsKey(a) ? 0 : 1;
         final bHas = areaOfWorker.containsKey(b) ? 0 : 1;
