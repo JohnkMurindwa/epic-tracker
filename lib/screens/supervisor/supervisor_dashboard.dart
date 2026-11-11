@@ -9,6 +9,7 @@ import '../../widgets/offline_banner.dart';
 import '../../widgets/language_toggle.dart';
 import '../../services/app_strings.dart';
 import 'foreman_crew_roster.dart';
+import 'assignment_summary_tab.dart';
 import 'foreman_time_tab.dart';
 import '../../widgets/missed_clock_out_checker.dart';
 
@@ -38,7 +39,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _isForeman ? 3 : 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     if (_isForeman) startMissedClockOutChecks();
   }
 
@@ -82,7 +83,10 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
               unselectedLabelColor: Colors.grey[500],
               indicatorWeight: 2.5,
               tabs: [
-                if (_isForeman) Tab(text: tr('My Time', 'Mi Tiempo')),
+                if (_isForeman)
+                  Tab(text: tr('My Time', 'Mi Tiempo'))
+                else
+                  Tab(text: tr('Dash', 'Resumen')),
                 Tab(text: tr('My Crew', 'Mi Equipo')),
                 Tab(text: tr('Job Sites', 'Obras')),
               ],
@@ -96,7 +100,10 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                   ForemanTimeTab(
                     key: ValueKey(_timeTabVersion),
                     user: widget.user,
-                  ),
+                  )
+                else
+                  // The daily dispatch sheet: every site, its foreman, its crew.
+                  const AssignmentSummaryTab(),
                 _buildCrewTab(),
                 _buildJobSitesTab(),
               ],
