@@ -61,6 +61,9 @@ class AssignmentSummaryTab extends StatelessWidget {
       names[u.id] = data['name'] as String? ?? '';
       roles[u.id] = data['role'] as String? ?? '';
     }
+    // Assignment arrays can hold IDs of users deleted since (deleting a user
+    // doc does not clean them up) — those count for nothing here.
+    bool exists(String id) => (names[id] ?? '').isNotEmpty;
 
     // Worker id → assigned area name, per site.
     final areaOf = <String, Map<String, String>>{}; // projectId → user → area
@@ -68,6 +71,7 @@ class AssignmentSummaryTab extends StatelessWidget {
       final data = a.data() as Map<String, dynamic>;
       final projectId = data['projectId'] as String? ?? '';
       for (final id in List<String>.from(data['assignedPeople'] ?? [])) {
+        if (!exists(id)) continue;
         areaOf.putIfAbsent(projectId, () => {})[id] =
             data['name'] as String? ?? '';
       }
@@ -76,8 +80,8 @@ class AssignmentSummaryTab extends StatelessWidget {
     // Only staffed sites (a foreman or workers assigned), sorted by name.
     final sorted = projects.where((p) {
       final data = p.data() as Map<String, dynamic>;
-      return List.from(data['assignedWorkers'] ?? []).isNotEmpty ||
-          List.from(data['assignedForemen'] ?? []).isNotEmpty ||
+      return List<String>.from(data['assignedWorkers'] ?? []).any(exists) ||
+          List<String>.from(data['assignedForemen'] ?? []).any(exists) ||
           (areaOf[p.id]?.isNotEmpty ?? false);
     }).toList()
       ..sort((a, b) {
@@ -89,9 +93,11 @@ class AssignmentSummaryTab extends StatelessWidget {
     var sitesWithoutForeman = 0;
     for (final p in sorted) {
       final data = p.data() as Map<String, dynamic>;
-      allAssigned.addAll(List<String>.from(data['assignedWorkers'] ?? []));
+      allAssigned.addAll(
+        List<String>.from(data['assignedWorkers'] ?? []).where(exists),
+      );
       allAssigned.addAll((areaOf[p.id] ?? const {}).keys);
-      if (List.from(data['assignedForemen'] ?? []).isEmpty) {
+      if (!List<String>.from(data['assignedForemen'] ?? []).any(exists)) {
         sitesWithoutForeman++;
       }
     }
@@ -179,7 +185,9 @@ class AssignmentSummaryTab extends StatelessWidget {
     // Crew: the site pool plus anyone assigned to one of its areas, with
     // area-assigned workers first, then the rest.
     final workerIds = <String>{
-      ...List<String>.from(data['assignedWorkers'] ?? []),
+      ...List<String>.from(
+        data['assignedWorkers'] ?? [],
+      ).where((id) => (names[id] ?? '').isNotEmpty),
       ...areaOfWorker.keys,
     }.toList()
       ..sort((a, b) {
