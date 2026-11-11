@@ -280,16 +280,6 @@ class AssignmentSummaryTab extends StatelessWidget {
                           text: ' · ${AppStrings.role(roles[id] ?? '')}',
                           style: TextStyle(color: Colors.grey[600]),
                         ),
-                        TextSpan(
-                          text: areaOfWorker.containsKey(id)
-                              ? ' · ${areaOfWorker[id]}'
-                              : tr(' · no area yet', ' · aún sin área'),
-                          style: TextStyle(
-                            color: areaOfWorker.containsKey(id)
-                                ? Colors.grey[800]
-                                : Colors.orange[800],
-                          ),
-                        ),
                       ],
                     ),
                     style: const TextStyle(fontSize: 13),
