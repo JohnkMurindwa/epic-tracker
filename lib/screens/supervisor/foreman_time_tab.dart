@@ -56,9 +56,20 @@ class _ForemanTimeTabState extends State<ForemanTimeTab> {
           entries.isNotEmpty && entries.last['clockOut'] == null;
       final isDayComplete = log?['is_day_complete'] ?? false;
 
-      // Remind at 4:30 PM if still clocked in; cancel once clocked out.
+      // Remind after the site's end time if still clocked in (4:00 PM when
+      // the site has no standing hours); cancel once clocked out.
+      String? workEnd;
+      if (hasOpenEntry) {
+        final projectId = entries.last['projectId'] as String?;
+        if (projectId != null) {
+          workEnd = (await _firestoreService.getProjectWorkHours(
+            projectId,
+          )).end;
+        }
+      }
       NotificationService.syncClockOutReminder(
         isClockedIn: hasOpenEntry && !isDayComplete,
+        workEnd: workEnd,
       );
 
       if (!mounted) return;

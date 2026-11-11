@@ -10,16 +10,28 @@ import '../../widgets/off_site_badge.dart';
 ///
 /// Built from assignments, not only clock-ins, so people show up as soon as
 /// they are assigned — before they clock in.
+///
+/// While the foreman is clocked in at a site, the roster narrows to that
+/// site's crew; when he is not clocked in, it shows all his sites.
+///
+/// With [allActiveSites] (the supervisor's My Crew), it covers every active
+/// job site instead of one foreman's: collapsed, scoreboard-style groups per
+/// site — "3 of 5 working · 2 not in yet" — with each site's foreman listed
+/// first, no "(You)" card, and no clocked-in filtering.
 class ForemanCrewRoster extends StatelessWidget {
   final UserModel foreman;
 
   /// Day shown (the dashboard's selected day).
   final DateTime day;
 
+  /// Supervisor mode: all active sites, collapsed groups.
+  final bool allActiveSites;
+
   const ForemanCrewRoster({
     super.key,
     required this.foreman,
     required this.day,
+    this.allActiveSites = false,
   });
 
   static const _workerRoles = [
@@ -36,10 +48,15 @@ class ForemanCrewRoster extends StatelessWidget {
     final dayStart = DateTime(day.year, day.month, day.day);
 
     return StreamBuilder<QuerySnapshot>(
-      stream: db
-          .collection('projects')
-          .where('assignedForemen', arrayContains: foreman.id)
-          .snapshots(),
+      stream: allActiveSites
+          ? db
+                .collection('projects')
+                .where('status', isEqualTo: 'active')
+                .snapshots()
+          : db
+                .collection('projects')
+                .where('assignedForemen', arrayContains: foreman.id)
+                .snapshots(),
       builder: (context, projectSnap) {
         final projects = projectSnap.data?.docs ?? [];
         final projectIds = projects.map((d) => d.id).toList();
@@ -80,13 +97,33 @@ class ForemanCrewRoster extends StatelessWidget {
                         ),
                       );
                     }
+                    final logs = logSnap.data!.docs;
+                    final activeSiteId = allActiveSites
+                        ? null
+                        : _activeSiteId(logs);
                     final crew = _buildCrew(
                       projects: projects,
                       areas: areaSnap.data?.docs ?? [],
                       users: userSnap.data!.docs,
-                      logs: logSnap.data!.docs,
+                      logs: logs,
+                      onlySiteId: activeSiteId,
                     );
-                    return _buildList(context, crew, projects.isEmpty);
+                    String? activeSiteName;
+                    if (activeSiteId != null) {
+                      for (final p in projects) {
+                        if (p.id == activeSiteId) {
+                          activeSiteName =
+                              (p.data() as Map<String, dynamic>)['name']
+                                  as String?;
+                        }
+                      }
+                    }
+                    return _buildList(
+                      context,
+                      crew,
+                      projects.isEmpty,
+                      filteredSite: activeSiteName,
+                    );
                   },
                 );
               },
@@ -99,11 +136,27 @@ class ForemanCrewRoster extends StatelessWidget {
 
   // ─── Data ──────────────────────────────────────────────────
 
+  /// Site the foreman is clocked into right now — his open time entry's
+  /// projectId — or null when he isn't clocked in.
+  String? _activeSiteId(List<QueryDocumentSnapshot> logs) {
+    for (final l in logs) {
+      final data = l.data() as Map<String, dynamic>;
+      if (data['installer_id'] != foreman.id) continue;
+      for (final e in List<Map<String, dynamic>>.from(
+        data['time_entries'] ?? [],
+      )) {
+        if (e['clockOut'] == null) return e['projectId'] as String?;
+      }
+    }
+    return null;
+  }
+
   List<_Member> _buildCrew({
     required List<QueryDocumentSnapshot> projects,
     required List<QueryDocumentSnapshot> areas,
     required List<QueryDocumentSnapshot> users,
     required List<QueryDocumentSnapshot> logs,
+    String? onlySiteId,
   }) {
     final projectNames = {
       for (final p in projects)
@@ -137,6 +190,12 @@ class ForemanCrewRoster extends StatelessWidget {
       for (final id in List<String>.from(data['assignedWorkers'] ?? [])) {
         siteOf.putIfAbsent(id, () => p.id);
       }
+      // Supervisor view lists each site's foreman too, first in its group.
+      if (allActiveSites) {
+        for (final id in List<String>.from(data['assignedForemen'] ?? [])) {
+          siteOf.putIfAbsent(id, () => p.id);
+        }
+      }
     }
     // Anyone who clocked in on these sites today, even if since reassigned.
     logsByUser.forEach((id, log) {
@@ -166,26 +225,39 @@ class ForemanCrewRoster extends StatelessWidget {
       );
     }
 
-    add(foreman.id, isMe: true);
+    if (!allActiveSites) add(foreman.id, isMe: true);
     for (final id in siteOf.keys) {
-      if (id != foreman.id) add(id, isMe: false);
+      if (id == foreman.id) continue;
+      // Clocked in somewhere: show only that site's crew.
+      if (onlySiteId != null && siteOf[id] != onlySiteId) continue;
+      add(id, isMe: false);
     }
     return crew;
   }
 
   // ─── UI ────────────────────────────────────────────────────
 
-  Widget _buildList(BuildContext context, List<_Member> crew, bool noSites) {
-    final me = crew.firstWhere((m) => m.isMe);
+  Widget _buildList(
+    BuildContext context,
+    List<_Member> crew,
+    bool noSites, {
+    String? filteredSite,
+  }) {
     final others = crew.where((m) => !m.isMe).toList();
 
-    // Group by site, people sorted by status (working first) then name.
+    // Group by site; the site's foreman first (supervisor view), then by
+    // status (working first), then name.
     final bySite = <String, List<_Member>>{};
     for (final m in others) {
       bySite.putIfAbsent(m.siteName, () => []).add(m);
     }
     for (final members in bySite.values) {
       members.sort((a, b) {
+        if (allActiveSites) {
+          final aForeman = a.role == 'foreman' ? 0 : 1;
+          final bForeman = b.role == 'foreman' ? 0 : 1;
+          if (aForeman != bForeman) return aForeman - bForeman;
+        }
         final byStatus = a.status.index.compareTo(b.status.index);
         return byStatus != 0
             ? byStatus
@@ -196,22 +268,56 @@ class ForemanCrewRoster extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildMemberCard(me),
+        if (!allActiveSites) _buildMemberCard(crew.firstWhere((m) => m.isMe)),
+        if (filteredSite != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Row(
+              children: [
+                Icon(Icons.filter_alt, size: 14, color: Colors.grey[500]),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    tr(
+                      'Showing $filteredSite — where you are clocked in',
+                      'Mostrando $filteredSite — donde estás registrado',
+                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ),
+              ],
+            ),
+          ),
         const SizedBox(height: 16),
         if (noSites)
           _buildEmpty(
-            tr(
-              'You are not assigned to any job sites yet. Ask your supervisor to assign you.',
-              'Aún no tienes obras asignadas. Pide a tu supervisor que te asigne.',
-            ),
+            allActiveSites
+                ? tr('No active job sites.', 'No hay obras activas.')
+                : tr(
+                    'You are not assigned to any job sites yet. Ask your supervisor to assign you.',
+                    'Aún no tienes obras asignadas. Pide a tu supervisor que te asigne.',
+                  ),
           )
         else if (others.isEmpty)
           _buildEmpty(
-            tr(
-              'No one is assigned to your job sites yet. Assign people to areas on the Job Sites tab.',
-              'Aún no hay nadie asignado a tus obras. Asigna personas a áreas en la pestaña Obras.',
-            ),
+            allActiveSites
+                ? tr(
+                    'No workers assigned to any active job site yet.',
+                    'Aún no hay trabajadores asignados a ninguna obra activa.',
+                  )
+                : filteredSite != null
+                ? tr(
+                    'No one else is assigned to $filteredSite yet.',
+                    'Aún no hay nadie más asignado a $filteredSite.',
+                  )
+                : tr(
+                    'No one is assigned to your job sites yet. Assign people to areas on the Job Sites tab.',
+                    'Aún no hay nadie asignado a tus obras. Asigna personas a áreas en la pestaña Obras.',
+                  ),
           )
+        else if (allActiveSites)
+          for (final site in bySite.entries)
+            _buildSiteGroup(site.key, site.value)
         else
           for (final site in bySite.entries) ...[
             Padding(
@@ -247,6 +353,69 @@ class ForemanCrewRoster extends StatelessWidget {
             const SizedBox(height: 12),
           ],
       ],
+    );
+  }
+
+  /// Collapsed, scoreboard-style site group for the supervisor's view.
+  Widget _buildSiteGroup(String site, List<_Member> members) {
+    final working = members.where((m) => m.status == _Status.working).length;
+    final notIn = members.where((m) => m.status == _Status.notIn).length;
+
+    // A Material (not a colored Container) so the ExpansionTile's ink
+    // splashes paint on the card instead of being hidden behind it.
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: Colors.white,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: Colors.grey[200]!),
+        ),
+        child: Theme(
+          data: ThemeData(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            // Keeps a group's open/closed state across live updates.
+            key: PageStorageKey('crew-$site'),
+            tilePadding: const EdgeInsets.symmetric(horizontal: 14),
+            childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            leading: const Icon(
+              Icons.location_city,
+              size: 18,
+              color: Colors.black54,
+            ),
+            title: Text(
+              site,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+            subtitle: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: tr(
+                      '$working of ${members.length} working',
+                      '$working de ${members.length} trabajando',
+                    ),
+                  ),
+                  if (notIn > 0)
+                    TextSpan(
+                      text: tr(
+                        ' · $notIn not in yet',
+                        ' · $notIn sin registrar',
+                      ),
+                      style: const TextStyle(
+                        color: Color(0xFFA32D2D),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                ],
+              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+            ),
+            children: [for (final m in members) _buildMemberCard(m)],
+          ),
+        ),
+      ),
     );
   }
 

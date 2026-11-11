@@ -80,11 +80,52 @@ class _InstallerDashboardState extends State<InstallerDashboard>
     _loadTodaysState();
   }
 
+  /// (Re)schedules both local reminders from today's state, using the
+  /// standing hours of the site worked (or assigned): clock-out nudge at
+  /// end + 30 min while clocked in, clock-in nudge at start + 15 min when
+  /// a work day is coming and no entry exists yet.
+  Future<void> _syncReminders({
+    required List<Map<String, dynamic>> entries,
+    required bool isClockedIn,
+  }) async {
+    try {
+      // Site: today's last entry, or the assigned area's project.
+      String? projectId = entries.isNotEmpty
+          ? entries.last['projectId'] as String?
+          : null;
+      String siteName = entries.isNotEmpty
+          ? (entries.last['projectName'] as String? ?? '')
+          : '';
+      projectId ??= await _firestoreService.assignedProjectIdFor(
+        widget.user.id,
+      );
+      if (projectId == null) {
+        NotificationService.syncClockOutReminder(isClockedIn: isClockedIn);
+        NotificationService.cancelClockInReminder();
+        return;
+      }
+      final hours = await _firestoreService.getProjectWorkHours(projectId);
+
+      NotificationService.syncClockOutReminder(
+        isClockedIn: isClockedIn,
+        workEnd: hours.end,
+      );
+      NotificationService.syncClockInReminder(
+        workStart: hours.start,
+        alreadyInToday: entries.isNotEmpty,
+        siteName: siteName,
+      );
+    } catch (e) {
+      debugPrint('Reminder sync failed: $e');
+    }
+  }
+
   Future<void> _loadTodaysState() async {
     try {
       final log = await _firestoreService.getTodaysLog(widget.user.id);
       if (log == null) {
         NotificationService.cancelClockOutReminder();
+        _syncReminders(entries: const [], isClockedIn: false);
         return;
       }
 
@@ -94,8 +135,8 @@ class _InstallerDashboardState extends State<InstallerDashboard>
       final hasOpenEntry =
           entries.isNotEmpty && entries.last['clockOut'] == null;
 
-      // Remind at 4:30 PM if still clocked in; cancel once clocked out.
-      NotificationService.syncClockOutReminder(
+      _syncReminders(
+        entries: entries,
         isClockedIn: hasOpenEntry && !(log['is_day_complete'] ?? false),
       );
       if (!mounted) return;

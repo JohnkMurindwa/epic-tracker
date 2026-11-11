@@ -243,6 +243,62 @@ class FirestoreService {
     }
   }
 
+  // ─── SITE HOURS (standing start/end of the work day) ──────
+
+  /// Set a job site's standing daily hours ('HH:mm' 24h strings). They apply
+  /// every day until changed. Reminders are based on them: clock-in nudge at
+  /// start + 15 min, clock-out nudge at end + 30 min.
+  Future<void> setProjectHours({
+    required String projectId,
+    required String workStart,
+    required String workEnd,
+    required String setBy,
+  }) async {
+    await _db.collection('projects').doc(projectId).update({
+      'workStart': workStart,
+      'workEnd': workEnd,
+      'hoursSetBy': setBy,
+      'hoursSetAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// A site's standing hours, or nulls when not set (or unreadable offline).
+  Future<({String? start, String? end})> getProjectWorkHours(
+    String projectId,
+  ) async {
+    try {
+      final doc = await _db
+          .collection('projects')
+          .doc(projectId)
+          .get()
+          .timeout(const Duration(seconds: 5));
+      return (
+        start: doc.data()?['workStart'] as String?,
+        end: doc.data()?['workEnd'] as String?,
+      );
+    } catch (_) {
+      return (start: null, end: null);
+    }
+  }
+
+  /// The site an installer would clock into today: their assigned area's
+  /// project. Null when they have no active area.
+  Future<String?> assignedProjectIdFor(String userId) async {
+    try {
+      final snapshot = await _db
+          .collection('areas')
+          .where('assignedPeople', arrayContains: userId)
+          .where('status', isEqualTo: 'active')
+          .limit(1)
+          .get()
+          .timeout(const Duration(seconds: 5));
+      if (snapshot.docs.isEmpty) return null;
+      return snapshot.docs.first.data()['projectId'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ─── DAILY LOGS (area-based time tracking) ────────────────
 
   /// Clock in at a specific area. Creates or updates today's daily log.
@@ -657,4 +713,15 @@ double distanceFeet(GeoPoint a, GeoPoint b) =>
 String formatDistanceFt(num? feet) {
   final f = (feet ?? 0).toDouble();
   return f < 1320 ? '${f.round()} ft' : '${(f / 5280).toStringAsFixed(1)} mi';
+}
+
+/// Parses 'HH:mm' into today's-or-[day]'s DateTime, or null if malformed.
+DateTime? timeOnDay(String? hhmm, DateTime day) {
+  if (hhmm == null) return null;
+  final parts = hhmm.split(':');
+  if (parts.length != 2) return null;
+  final h = int.tryParse(parts[0]);
+  final m = int.tryParse(parts[1]);
+  if (h == null || m == null || h > 23 || m > 59) return null;
+  return DateTime(day.year, day.month, day.day, h, m);
 }

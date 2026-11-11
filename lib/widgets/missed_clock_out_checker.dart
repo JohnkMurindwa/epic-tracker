@@ -11,14 +11,15 @@ import '../services/notification_service.dart';
 /// they left, and clocks them out at that time.
 ///
 /// Two triggers:
-///  * **Same day (primary):** at 4:00 PM while the app is open, or as soon
-///    as it is opened or brought back after 4:00 PM. The worker can also
+///  * **Same day (primary):** at the site's end time + 30 min (or 4:00 PM
+///    when the site has no standing hours) while the app is open, or as
+///    soon as it is opened or brought back after that. The worker can also
 ///    answer "I'm still working", which asks again an hour later.
 ///  * **Later day (backup):** on opening the app, any earlier day (last
 ///    two weeks) whose session was never closed.
 ///
-/// Sessions clocked in after 4:00 PM (overtime) are not prompted the same
-/// day; the backup catches them if they are never closed.
+/// Sessions clocked in after the cutoff (overtime) are not prompted the
+/// same day; the backup catches them if they are never closed.
 ///
 /// Usage: mix into a dashboard's State, call [startMissedClockOutChecks] in
 /// `initState` and [stopMissedClockOutChecks] in `dispose`.
@@ -38,6 +39,9 @@ mixin MissedClockOutChecker<T extends StatefulWidget> on State<T> {
 
   static const _snooze = Duration(hours: 1);
 
+  /// Site end times already looked up this session (projectId → 'HH:mm').
+  final Map<String, String?> _siteEndCache = {};
+
   void startMissedClockOutChecks() {
     _missedLifecycle = AppLifecycleListener(
       onResume: () {
@@ -54,25 +58,50 @@ mixin MissedClockOutChecker<T extends StatefulWidget> on State<T> {
     _missedLifecycle?.dispose();
   }
 
-  /// End-of-day time on [day] (4:00 PM).
-  DateTime _cutoffOn(DateTime day) => DateTime(
-    day.year,
-    day.month,
-    day.day,
-    NotificationService.reminderHour,
-    NotificationService.reminderMinute,
-  );
+  /// End-of-day cutoff on [day] for the site of [entry]: the site's end
+  /// time + 30 min, or 4:00 PM when the site has no standing hours.
+  Future<DateTime> _cutoffFor(DateTime day, Map<String, dynamic> entry) async {
+    final projectId = entry['projectId'] as String?;
+    String? end;
+    if (projectId != null) {
+      if (_siteEndCache.containsKey(projectId)) {
+        end = _siteEndCache[projectId];
+      } else {
+        end = (await _missedService.getProjectWorkHours(projectId)).end;
+        _siteEndCache[projectId] = end;
+      }
+    }
+    return NotificationService.clockOutCutoff(day, end);
+  }
 
   /// Timers do not run while the app is in the background, so this is
   /// re-armed whenever the app comes back to the foreground.
-  void _scheduleSameDayCheck() {
+  Future<void> _scheduleSameDayCheck() async {
     _missedTimer?.cancel();
     final now = DateTime.now();
-    var target = _cutoffOn(now);
+    final todayStart = DateTime(now.year, now.month, now.day);
+
+    // Today's cutoff depends on the site of today's open session, if any.
+    var target = NotificationService.clockOutCutoff(now, null);
+    try {
+      final logs = await _missedService.getLogsWithOpenEntry(checkerUserId);
+      for (final log in logs) {
+        final logDate = (log['log_date'] as Timestamp).toDate();
+        if (logDate.isBefore(todayStart)) continue;
+        final entry = List<Map<String, dynamic>>.from(
+          log['time_entries'],
+        ).last;
+        target = await _cutoffFor(now, entry);
+      }
+    } catch (_) {
+      // Offline: keep the default cutoff.
+    }
+
     final snoozedUntil = _snoozedUntil;
     if (snoozedUntil != null && snoozedUntil.isAfter(target)) {
       target = snoozedUntil;
     }
+    if (!mounted) return;
     if (target.isAfter(now)) {
       _missedTimer = Timer(target.difference(now), checkMissedClockOuts);
     }
@@ -102,7 +131,7 @@ mixin MissedClockOutChecker<T extends StatefulWidget> on State<T> {
       if (clockIn == null) continue;
 
       if (isToday) {
-        final cutoff = _cutoffOn(now);
+        final cutoff = await _cutoffFor(now, entry);
         final snoozedUntil = _snoozedUntil;
         if (now.isBefore(cutoff)) continue;
         if (!clockIn.isBefore(cutoff)) continue; // overtime session
@@ -168,8 +197,15 @@ mixin MissedClockOutChecker<T extends StatefulWidget> on State<T> {
         ? now
         : DateTime(day.year, day.month, day.day, 23, 59);
 
-    // Suggest 4:00 PM, kept between clock-in and the latest allowed time.
-    var suggested = _cutoffOn(day);
+    // Suggest the site's cutoff (end + 30 min, or 4:00 PM), kept between
+    // clock-in and the latest allowed time.
+    DateTime suggested;
+    try {
+      suggested = await _cutoffFor(day, entry);
+    } catch (_) {
+      suggested = NotificationService.clockOutCutoff(day, null);
+    }
+    if (!mounted) return null;
     if (!suggested.isAfter(clockIn)) {
       suggested = clockIn.add(const Duration(minutes: 1));
     }
