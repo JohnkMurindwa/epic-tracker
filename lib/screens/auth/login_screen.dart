@@ -568,12 +568,32 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (response['success'] == true && mounted) {
           UserModel user = response['user'] as UserModel;
+
+          // Admin accounts work on the web dashboard only — its tables and
+          // imports are built for a big screen, not the phone app.
+          if (!kIsWeb && user.role == 'admin') {
+            await _authService.signOut();
+            if (!mounted) return;
+            setState(() => _isLoading = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  tr(
+                    'Admin accounts sign in on the web dashboard: epic-admin-dashboard.web.app',
+                    'Las cuentas de administrador inician sesión en el panel web: epic-admin-dashboard.web.app',
+                  ),
+                ),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 6),
+              ),
+            );
+            return;
+          }
+
           await AppStrings.onSignIn(user.id, user.language);
           if (!mounted) return;
           Widget dashboard;
           if (kIsWeb) {
-            dashboard = AdminDashboard(user: user);
-          } else if (user.role == 'admin') {
             dashboard = AdminDashboard(user: user);
           } else {
             dashboard = SupervisorDashboard(user: user);
