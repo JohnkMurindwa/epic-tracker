@@ -6,7 +6,8 @@ import '../../services/app_strings.dart';
 /// The supervisor's "Dash" tab: the daily dispatch sheet he used to write on
 /// paper. One card per active job site — which foreman runs it and which
 /// crew he gave them, with each worker's area. Assignments only, no live
-/// clock-in status (that's the My Crew tab).
+/// clock-in status (that's the My Crew tab). Sites with nobody assigned
+/// are left off the sheet.
 class AssignmentSummaryTab extends StatelessWidget {
   const AssignmentSummaryTab({super.key});
 
@@ -72,8 +73,12 @@ class AssignmentSummaryTab extends StatelessWidget {
       }
     }
 
-    // Sites sorted by name; totals for the header line.
-    final sorted = projects.toList()
+    // Only staffed sites (a foreman or workers assigned), sorted by name.
+    final sorted = projects.where((p) {
+      final data = p.data() as Map<String, dynamic>;
+      return List.from(data['assignedWorkers'] ?? []).isNotEmpty ||
+          List.from(data['assignedForemen'] ?? []).isNotEmpty;
+    }).toList()
       ..sort((a, b) {
         final an = ((a.data() as Map<String, dynamic>)['name'] ?? '') as String;
         final bn = ((b.data() as Map<String, dynamic>)['name'] ?? '') as String;
@@ -134,7 +139,10 @@ class AssignmentSummaryTab extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              tr('No active job sites.', 'No hay obras activas.'),
+              tr(
+                'No assignments yet. Assign foremen and workers on the Job Sites tab.',
+                'Aún no hay asignaciones. Asigna capataces y trabajadores en la pestaña Obras.',
+              ),
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey[600]),
             ),
