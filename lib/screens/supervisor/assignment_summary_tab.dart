@@ -109,7 +109,8 @@ class AssignmentSummaryTab extends StatelessWidget {
 
     // Everyone on the field roster who is on no active site at all — the
     // bottom of the paper sheet: people still waiting for an assignment.
-    const fieldRoles = ['installer', 'junior_installer', 'helper', 'foreman'];
+    // Order doubles as the display rank in the unassigned list.
+    const fieldRoles = ['foreman', 'installer', 'junior_installer', 'helper'];
     final unassigned =
         names.keys
             .where(
@@ -120,11 +121,16 @@ class AssignmentSummaryTab extends StatelessWidget {
                   !assignedForemen.contains(id),
             )
             .toList()
-          ..sort(
-            (a, b) => names[a]!.toLowerCase().compareTo(
-              names[b]!.toLowerCase(),
-            ),
-          );
+          ..sort((a, b) {
+            // Rank first: foreman, installer, junior installer, helper —
+            // then alphabetical within each role.
+            final byRank = fieldRoles
+                .indexOf(roles[a] ?? '')
+                .compareTo(fieldRoles.indexOf(roles[b] ?? ''));
+            return byRank != 0
+                ? byRank
+                : names[a]!.toLowerCase().compareTo(names[b]!.toLowerCase());
+          });
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -229,8 +235,11 @@ class AssignmentSummaryTab extends StatelessWidget {
                         children: [
                           TextSpan(
                             text: names[id],
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w500,
+                            style: TextStyle(
+                              // Foremen stand out: they anchor a crew.
+                              fontWeight: roles[id] == 'foreman'
+                                  ? FontWeight.w800
+                                  : FontWeight.w500,
                             ),
                           ),
                           TextSpan(
