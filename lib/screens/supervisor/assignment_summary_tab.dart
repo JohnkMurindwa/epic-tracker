@@ -90,6 +90,7 @@ class AssignmentSummaryTab extends StatelessWidget {
         return an.toLowerCase().compareTo(bn.toLowerCase());
       });
     final allAssigned = <String>{};
+    final assignedForemen = <String>{};
     var sitesWithoutForeman = 0;
     for (final p in sorted) {
       final data = p.data() as Map<String, dynamic>;
@@ -97,10 +98,33 @@ class AssignmentSummaryTab extends StatelessWidget {
         List<String>.from(data['assignedWorkers'] ?? []).where(exists),
       );
       allAssigned.addAll((areaOf[p.id] ?? const {}).keys);
-      if (!List<String>.from(data['assignedForemen'] ?? []).any(exists)) {
+      final siteForemen = List<String>.from(
+        data['assignedForemen'] ?? [],
+      ).where(exists);
+      assignedForemen.addAll(siteForemen);
+      if (siteForemen.isEmpty) {
         sitesWithoutForeman++;
       }
     }
+
+    // Everyone on the field roster who is on no active site at all — the
+    // bottom of the paper sheet: people still waiting for an assignment.
+    const fieldRoles = ['installer', 'junior_installer', 'helper', 'foreman'];
+    final unassigned =
+        names.keys
+            .where(
+              (id) =>
+                  exists(id) &&
+                  fieldRoles.contains(roles[id]) &&
+                  !allAssigned.contains(id) &&
+                  !assignedForemen.contains(id),
+            )
+            .toList()
+          ..sort(
+            (a, b) => names[a]!.toLowerCase().compareTo(
+              names[b]!.toLowerCase(),
+            ),
+          );
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -163,6 +187,65 @@ class AssignmentSummaryTab extends StatelessWidget {
               roles: roles,
               areaOfWorker: areaOf[p.id] ?? const {},
             ),
+        if (unassigned.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[200]!),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.person_off_outlined,
+                      size: 15,
+                      color: Colors.orange[800],
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      tr(
+                        'Not yet assigned (${unassigned.length})',
+                        'Aún sin asignar (${unassigned.length})',
+                      ),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.orange[800],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                for (final id in unassigned)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 21, bottom: 3),
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: names[id],
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          TextSpan(
+                            text: ' · ${AppStrings.role(roles[id] ?? '')}',
+                            style: TextStyle(color: Colors.grey[600]),
+                          ),
+                        ],
+                      ),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 24),
       ],
     );

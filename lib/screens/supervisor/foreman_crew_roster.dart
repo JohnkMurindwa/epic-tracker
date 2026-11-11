@@ -490,7 +490,8 @@ class ForemanCrewRoster extends StatelessWidget {
                     m.flaggedEntry!,
                     margin: const EdgeInsets.only(top: 4),
                   ),
-                if (!m.isMe)
+                // Foremen work the whole site, so no area line for them.
+                if (!m.isMe && m.role != 'foreman')
                   Text(
                     m.assignedArea == null
                         ? tr('No area assigned yet', 'Aún sin área asignada')
