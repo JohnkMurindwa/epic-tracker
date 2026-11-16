@@ -519,26 +519,6 @@ class ForemanCrewRoster extends StatelessWidget {
                         tr('No area assigned yet', 'Aún sin área asignada'),
                     style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
-                  // The area's crew-day budget, as a slim countdown bar.
-                  if (m.areaTotalCrewDays != null &&
-                      m.areaTotalCrewDays! > 0) ...[
-                    const SizedBox(height: 5),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(3),
-                      child: LinearProgressIndicator(
-                        value:
-                            (m.areaConsumedCrewDays! / m.areaTotalCrewDays!)
-                                .clamp(0.0, 1.0),
-                        minHeight: 4,
-                        backgroundColor: Colors.grey[200],
-                        valueColor: AlwaysStoppedAnimation(
-                          m.areaConsumedCrewDays! > m.areaTotalCrewDays!
-                              ? const Color(0xFFA32D2D)
-                              : Colors.black87,
-                        ),
-                      ),
-                    ),
-                  ],
                 ],
                 if (m.flaggedEntry != null)
                   OffSiteBadge(
