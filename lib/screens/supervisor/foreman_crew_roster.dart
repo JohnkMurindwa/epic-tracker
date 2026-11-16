@@ -490,17 +490,6 @@ class ForemanCrewRoster extends StatelessWidget {
                     m.flaggedEntry!,
                     margin: const EdgeInsets.only(top: 4),
                   ),
-                // Foremen work the whole site, so no area line for them.
-                if (!m.isMe && m.role != 'foreman')
-                  Text(
-                    m.assignedArea == null
-                        ? tr('No area assigned yet', 'Aún sin área asignada')
-                        : tr(
-                            'Assigned: ${m.assignedArea}',
-                            'Asignado: ${m.assignedArea}',
-                          ),
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                  ),
               ],
             ),
           ),
@@ -536,10 +525,10 @@ class ForemanCrewRoster extends StatelessWidget {
           Icons.play_arrow,
           Colors.black87,
           since == null
-              ? tr('Working at $where', 'Trabajando en $where')
+              ? where
               : tr(
-                  'Working at $where · since ${_formatTime(since)}',
-                  'Trabajando en $where · desde las ${_formatTime(since)}',
+                  '$where · since ${_formatTime(since)}',
+                  '$where · desde las ${_formatTime(since)}',
                 ),
         );
       case _Status.lunch:
@@ -583,11 +572,10 @@ class ForemanCrewRoster extends StatelessWidget {
   }
 
   /// "A12 — Sliding door · 19 del Mar", or the site for whole-site entries.
-  String _place(Map<String, dynamic> entry) {
-    final project = entry['projectName'] as String? ?? '';
-    final area = entry['areaName'] as String?;
-    return area == null ? project : '$area · $project';
-  }
+  /// Where a session is: its area. The job site is already the card's
+  /// group header, so it is never repeated here.
+  String _place(Map<String, dynamic> entry) =>
+      entry['areaName'] as String? ?? entry['projectName'] as String? ?? '';
 
   String _formatTime(DateTime time) {
     final hour = time.hour > 12
