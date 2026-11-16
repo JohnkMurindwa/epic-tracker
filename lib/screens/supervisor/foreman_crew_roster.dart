@@ -485,6 +485,15 @@ class ForemanCrewRoster extends StatelessWidget {
                         : Colors.black87,
                   ),
                 ),
+                // Where they are (or belong): the area, on its own line.
+                // Foremen work the whole site, so they get no area line.
+                if (!m.isMe && m.role != 'foreman')
+                  Text(
+                    (m.openEntry?['areaName'] as String?) ??
+                        m.assignedArea ??
+                        tr('No area assigned yet', 'Aún sin área asignada'),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
                 if (m.flaggedEntry != null)
                   OffSiteBadge(
                     m.flaggedEntry!,
@@ -520,27 +529,21 @@ class ForemanCrewRoster extends StatelessWidget {
                   ),
           );
         }
-        final where = _place(entry);
         return (
           Icons.play_arrow,
           Colors.black87,
           since == null
-              ? where
+              ? tr('Clocked in', 'Entrada registrada')
               : tr(
-                  '$where · since ${_formatTime(since)}',
-                  '$where · desde las ${_formatTime(since)}',
+                  'Since ${_formatTime(since)}',
+                  'Desde las ${_formatTime(since)}',
                 ),
         );
       case _Status.lunch:
         return (
           Icons.restaurant,
           Colors.orange,
-          m.role == 'foreman'
-              ? tr('On lunch', 'En almuerzo')
-              : tr(
-                  'On lunch · ${_place(m.openEntry!)}',
-                  'En almuerzo · ${_place(m.openEntry!)}',
-                ),
+          tr('On lunch', 'En almuerzo'),
         );
       case _Status.clockedOut:
         return (
@@ -570,12 +573,6 @@ class ForemanCrewRoster extends StatelessWidget {
         );
     }
   }
-
-  /// "A12 — Sliding door · 19 del Mar", or the site for whole-site entries.
-  /// Where a session is: its area. The job site is already the card's
-  /// group header, so it is never repeated here.
-  String _place(Map<String, dynamic> entry) =>
-      entry['areaName'] as String? ?? entry['projectName'] as String? ?? '';
 
   String _formatTime(DateTime time) {
     final hour = time.hour > 12
