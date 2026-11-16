@@ -220,21 +220,34 @@ class ForemanCrewRoster extends StatelessWidget {
       }
     });
 
+    // The area each person counts toward: where they worked today, or
+    // where they are assigned. The countdown divides by THESE head counts,
+    // so it always matches the people visible in the area — even when the
+    // assignment list and today's reality disagree.
+    String? effAreaOf(String id) {
+      final entries = List<Map<String, dynamic>>.from(
+        logsByUser[id]?['time_entries'] ?? [],
+      );
+      final liveAreaId = entries.isNotEmpty
+          ? entries.last['areaId'] as String?
+          : null;
+      return liveAreaId ?? areaIdOf[id];
+    }
+
+    final headCount = <String, int>{}; // area doc id → people in it today
+    for (final id in siteOf.keys) {
+      if (userData[id] == null) continue; // deleted account
+      final a = effAreaOf(id);
+      if (a != null) headCount[a] = (headCount[a] ?? 0) + 1;
+    }
+
     final crew = <_Member>[];
     void add(String id, {required bool isMe}) {
       final data = userData[id];
       if (data == null && !isMe) return; // deleted account
 
-      // The area shown (and its budget): where they worked today, or where
-      // they are assigned.
       final log = logsByUser[id];
-      final entries = List<Map<String, dynamic>>.from(
-        log?['time_entries'] ?? [],
-      );
-      final liveAreaId = entries.isNotEmpty
-          ? entries.last['areaId'] as String?
-          : null;
-      final effectiveAreaId = liveAreaId ?? areaIdOf[id];
+      final effectiveAreaId = effAreaOf(id);
 
       crew.add(
         _Member(
@@ -247,7 +260,8 @@ class ForemanCrewRoster extends StatelessWidget {
               : areaOf[id],
           areaTotalCrewDays: areaTotal[effectiveAreaId],
           areaConsumedCrewDays: areaConsumed[effectiveAreaId],
-          areaPeopleCount: areaPeople[effectiveAreaId] ?? 0,
+          areaPeopleCount:
+              headCount[effectiveAreaId] ?? areaPeople[effectiveAreaId] ?? 0,
           log: log,
         ),
       );
