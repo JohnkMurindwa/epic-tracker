@@ -182,11 +182,13 @@ class ForemanCrewRoster extends StatelessWidget {
     final areaTotal = <String, double>{}; // area doc id → total crew days
     final areaConsumed = <String, double>{};
     final areaNameById = <String, String>{};
+    final areaPeople = <String, int>{}; // area doc id → people assigned
     for (final a in areas) {
       final data = a.data() as Map<String, dynamic>;
       areaTotal[a.id] = (data['totalCrewDays'] ?? 0).toDouble();
       areaConsumed[a.id] = (data['consumedCrewDays'] ?? 0).toDouble();
       areaNameById[a.id] = data['name'] as String? ?? '';
+      areaPeople[a.id] = (data['assignedPeople'] as List?)?.length ?? 0;
       for (final id in List<String>.from(data['assignedPeople'] ?? [])) {
         siteOf[id] = data['projectId'] as String? ?? '';
         areaOf[id] = data['name'] as String? ?? '';
@@ -245,6 +247,7 @@ class ForemanCrewRoster extends StatelessWidget {
               : areaOf[id],
           areaTotalCrewDays: areaTotal[effectiveAreaId],
           areaConsumedCrewDays: areaConsumed[effectiveAreaId],
+          areaPeopleCount: areaPeople[effectiveAreaId] ?? 0,
           log: log,
         ),
       );
@@ -538,22 +541,18 @@ class ForemanCrewRoster extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  _fmtDays(m.areaTotalCrewDays! - m.areaConsumedCrewDays!),
+                  _fmtDays(m.areaDaysLeft),
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                     height: 1.1,
-                    color:
-                        m.areaConsumedCrewDays! > m.areaTotalCrewDays!
+                    color: m.areaDaysLeft < 0
                         ? const Color(0xFFA32D2D)
                         : Colors.black87,
                   ),
                 ),
                 Text(
-                  tr(
-                    'of ${_fmtDays(m.areaTotalCrewDays!)} days',
-                    'de ${_fmtDays(m.areaTotalCrewDays!)} días',
-                  ),
+                  tr('days left', 'días restantes'),
                   style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                 ),
               ],
@@ -661,6 +660,18 @@ class _Member {
   final double? areaTotalCrewDays;
   final double? areaConsumedCrewDays;
 
+  /// People assigned to that area — the countdown divides by pairs.
+  final int areaPeopleCount;
+
+  /// Working days left at the area's current staffing:
+  /// (total − consumed) ÷ pairs, one pair = 2 people. Same formula as the
+  /// installer's crew-days card and the clock-out snapshots.
+  double get areaDaysLeft {
+    final remaining = areaTotalCrewDays! - areaConsumedCrewDays!;
+    final pairs = areaPeopleCount / 2;
+    return pairs > 0 ? remaining / pairs : remaining;
+  }
+
   final Map<String, dynamic>? log;
 
   _Member({
@@ -671,6 +682,7 @@ class _Member {
     required this.assignedArea,
     this.areaTotalCrewDays,
     this.areaConsumedCrewDays,
+    this.areaPeopleCount = 0,
     required this.log,
   });
 
