@@ -176,12 +176,21 @@ class ForemanCrewRoster extends StatelessWidget {
     final siteOf = <String, String>{};
     final areaOf = <String, String>{};
 
-    // Area assignments (made by the foreman) are the most specific.
+    // Area assignments (made by the foreman) are the most specific; the
+    // area docs also carry the crew-day budget shown on each card.
+    final areaIdOf = <String, String>{}; // person → assigned area doc id
+    final areaTotal = <String, double>{}; // area doc id → total crew days
+    final areaConsumed = <String, double>{};
+    final areaNameById = <String, String>{};
     for (final a in areas) {
       final data = a.data() as Map<String, dynamic>;
+      areaTotal[a.id] = (data['totalCrewDays'] ?? 0).toDouble();
+      areaConsumed[a.id] = (data['consumedCrewDays'] ?? 0).toDouble();
+      areaNameById[a.id] = data['name'] as String? ?? '';
       for (final id in List<String>.from(data['assignedPeople'] ?? [])) {
         siteOf[id] = data['projectId'] as String? ?? '';
         areaOf[id] = data['name'] as String? ?? '';
+        areaIdOf[id] = a.id;
       }
     }
     // Site pool (made by the supervisor).
@@ -213,14 +222,30 @@ class ForemanCrewRoster extends StatelessWidget {
     void add(String id, {required bool isMe}) {
       final data = userData[id];
       if (data == null && !isMe) return; // deleted account
+
+      // The area shown (and its budget): where they worked today, or where
+      // they are assigned.
+      final log = logsByUser[id];
+      final entries = List<Map<String, dynamic>>.from(
+        log?['time_entries'] ?? [],
+      );
+      final liveAreaId = entries.isNotEmpty
+          ? entries.last['areaId'] as String?
+          : null;
+      final effectiveAreaId = liveAreaId ?? areaIdOf[id];
+
       crew.add(
         _Member(
           name: isMe ? foreman.name : (data!['name'] as String? ?? ''),
           role: isMe ? foreman.role : (data!['role'] as String? ?? ''),
           isMe: isMe,
           siteName: projectNames[siteOf[id]] ?? '',
-          assignedArea: areaOf[id],
-          log: logsByUser[id],
+          assignedArea: effectiveAreaId != null
+              ? (areaNameById[effectiveAreaId] ?? areaOf[id])
+              : areaOf[id],
+          areaTotalCrewDays: areaTotal[effectiveAreaId],
+          areaConsumedCrewDays: areaConsumed[effectiveAreaId],
+          log: log,
         ),
       );
     }
@@ -487,13 +512,47 @@ class ForemanCrewRoster extends StatelessWidget {
                 ),
                 // Where they are (or belong): the area, on its own line.
                 // Foremen work the whole site, so they get no area line.
-                if (!m.isMe && m.role != 'foreman')
+                if (!m.isMe && m.role != 'foreman') ...[
                   Text(
                     (m.openEntry?['areaName'] as String?) ??
                         m.assignedArea ??
                         tr('No area assigned yet', 'Aún sin área asignada'),
                     style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
+                  // The area's crew-day budget, as a slim countdown bar.
+                  if (m.areaTotalCrewDays != null &&
+                      m.areaTotalCrewDays! > 0) ...[
+                    const SizedBox(height: 5),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: LinearProgressIndicator(
+                        value:
+                            (m.areaConsumedCrewDays! / m.areaTotalCrewDays!)
+                                .clamp(0.0, 1.0),
+                        minHeight: 4,
+                        backgroundColor: Colors.grey[200],
+                        valueColor: AlwaysStoppedAnimation(
+                          m.areaConsumedCrewDays! > m.areaTotalCrewDays!
+                              ? const Color(0xFFA32D2D)
+                              : Colors.black87,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      _crewDaysLabel(
+                        m.areaTotalCrewDays!,
+                        m.areaConsumedCrewDays!,
+                      ),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: m.areaConsumedCrewDays! > m.areaTotalCrewDays!
+                            ? const Color(0xFFA32D2D)
+                            : Colors.grey[500],
+                      ),
+                    ),
+                  ],
+                ],
                 if (m.flaggedEntry != null)
                   OffSiteBadge(
                     m.flaggedEntry!,
@@ -574,6 +633,23 @@ class ForemanCrewRoster extends StatelessWidget {
     }
   }
 
+  /// "2.4 of 6 crew days left" — or how far over once the budget is spent.
+  String _crewDaysLabel(double total, double consumed) {
+    String fmt(double v) => v == v.roundToDouble()
+        ? v.toStringAsFixed(0)
+        : v.toStringAsFixed(1);
+    final remaining = total - consumed;
+    return remaining >= 0
+        ? tr(
+            '${fmt(remaining)} of ${fmt(total)} crew days left',
+            '${fmt(remaining)} de ${fmt(total)} días restantes',
+          )
+        : tr(
+            'over budget by ${fmt(-remaining)} crew days',
+            'sobre presupuesto por ${fmt(-remaining)} días',
+          );
+  }
+
   String _formatTime(DateTime time) {
     final hour = time.hour > 12
         ? time.hour - 12
@@ -593,6 +669,11 @@ class _Member {
   final bool isMe;
   final String siteName;
   final String? assignedArea;
+
+  /// Crew-day budget of [assignedArea], when the area doc was found.
+  final double? areaTotalCrewDays;
+  final double? areaConsumedCrewDays;
+
   final Map<String, dynamic>? log;
 
   _Member({
@@ -601,6 +682,8 @@ class _Member {
     required this.isMe,
     required this.siteName,
     required this.assignedArea,
+    this.areaTotalCrewDays,
+    this.areaConsumedCrewDays,
     required this.log,
   });
 
