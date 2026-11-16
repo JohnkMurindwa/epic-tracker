@@ -538,19 +538,6 @@ class ForemanCrewRoster extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      _crewDaysLabel(
-                        m.areaTotalCrewDays!,
-                        m.areaConsumedCrewDays!,
-                      ),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: m.areaConsumedCrewDays! > m.areaTotalCrewDays!
-                            ? const Color(0xFFA32D2D)
-                            : Colors.grey[500],
-                      ),
-                    ),
                   ],
                 ],
                 if (m.flaggedEntry != null)
@@ -561,6 +548,37 @@ class ForemanCrewRoster extends StatelessWidget {
               ],
             ),
           ),
+          // The countdown: crew days left in their area, front and center.
+          if (!m.isMe &&
+              m.role != 'foreman' &&
+              m.areaTotalCrewDays != null &&
+              m.areaTotalCrewDays! > 0) ...[
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  _fmtDays(m.areaTotalCrewDays! - m.areaConsumedCrewDays!),
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    height: 1.1,
+                    color:
+                        m.areaConsumedCrewDays! > m.areaTotalCrewDays!
+                        ? const Color(0xFFA32D2D)
+                        : Colors.black87,
+                  ),
+                ),
+                Text(
+                  tr(
+                    'of ${_fmtDays(m.areaTotalCrewDays!)} days',
+                    'de ${_fmtDays(m.areaTotalCrewDays!)} días',
+                  ),
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -633,22 +651,11 @@ class ForemanCrewRoster extends StatelessWidget {
     }
   }
 
-  /// "2.4 of 6 crew days left" — or how far over once the budget is spent.
-  String _crewDaysLabel(double total, double consumed) {
-    String fmt(double v) => v == v.roundToDouble()
-        ? v.toStringAsFixed(0)
-        : v.toStringAsFixed(1);
-    final remaining = total - consumed;
-    return remaining >= 0
-        ? tr(
-            '${fmt(remaining)} of ${fmt(total)} crew days left',
-            '${fmt(remaining)} de ${fmt(total)} días restantes',
-          )
-        : tr(
-            'over budget by ${fmt(-remaining)} crew days',
-            'sobre presupuesto por ${fmt(-remaining)} días',
-          );
-  }
+  /// 2.0 → "2", 2.35 → "2.4"; negative keeps its minus so an overrun reads
+  /// plainly as "-0.5".
+  String _fmtDays(double v) => v == v.roundToDouble()
+      ? v.toStringAsFixed(0)
+      : v.toStringAsFixed(1);
 
   String _formatTime(DateTime time) {
     final hour = time.hour > 12
