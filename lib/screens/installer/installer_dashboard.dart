@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -56,12 +58,57 @@ class _InstallerDashboardState extends State<InstallerDashboard>
     super.initState();
     _loadTodaysState();
     startMissedClockOutChecks();
+    _watchTodaysCrew();
   }
 
   @override
   void dispose() {
+    _todayLogsSub?.cancel();
     stopMissedClockOutChecks();
     super.dispose();
+  }
+
+  /// Everyone's last area today (user id → areaId of their latest entry),
+  /// so the crew-days card counts the same heads as the foreman's and
+  /// supervisor's rosters — people actually in the area, not just the
+  /// assignment list.
+  Map<String, String?> _todayLastAreaOf = {};
+  StreamSubscription? _todayLogsSub;
+
+  void _watchTodaysCrew() {
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    _todayLogsSub = _db
+        .collection('daily_logs')
+        .where('log_date', isEqualTo: Timestamp.fromDate(todayStart))
+        .snapshots()
+        .listen((snapshot) {
+          final map = <String, String?>{};
+          for (final doc in snapshot.docs) {
+            final data = doc.data();
+            final uid = data['installer_id'] as String?;
+            final entries = List<Map<String, dynamic>>.from(
+              data['time_entries'] ?? [],
+            );
+            if (uid != null && entries.isNotEmpty) {
+              map[uid] = entries.last['areaId'] as String?;
+            }
+          }
+          if (mounted) setState(() => _todayLastAreaOf = map);
+        });
+  }
+
+  /// Heads in [areaId] today: assigned people (unless their last entry is
+  /// in a different area) plus anyone whose last entry is here. Mirrors the
+  /// crew roster's count exactly.
+  int _areaHeadCount(String areaId, List<String> assigned) {
+    final people = <String>{
+      for (final id in assigned)
+        if (_todayLastAreaOf[id] == null || _todayLastAreaOf[id] == areaId) id,
+      for (final e in _todayLastAreaOf.entries)
+        if (e.value == areaId) e.key,
+    };
+    return people.length;
   }
 
   @override
@@ -406,7 +453,10 @@ class _InstallerDashboardState extends State<InstallerDashboard>
           final data = snapshot.data!.data() as Map<String, dynamic>;
           total = (data['totalCrewDays'] ?? 0).toDouble();
           consumed = (data['consumedCrewDays'] ?? 0).toDouble();
-          peopleCount = (data['assignedPeople'] as List?)?.length ?? 0;
+          peopleCount = _areaHeadCount(
+            _currentAreaId!,
+            List<String>.from(data['assignedPeople'] ?? []),
+          );
         }
 
         final remaining = total - consumed;
