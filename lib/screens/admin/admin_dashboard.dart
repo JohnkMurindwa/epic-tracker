@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -34,7 +35,32 @@ class _AdminDashboardState extends State<AdminDashboard> {
   @override
   void initState() {
     super.initState();
+    // The admin dashboard is web-only. A session that reaches it on the
+    // phone app (e.g. restored from before that rule) is signed out.
+    if (!kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _leaveNonWeb());
+      return;
+    }
     _loadSettings();
+  }
+
+  Future<void> _leaveNonWeb() async {
+    await _authService.signOut();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Admin accounts sign in on the web dashboard: '
+          'epic-admin-dashboard.web.app',
+        ),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 6),
+      ),
+    );
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
   }
 
   Future<void> _loadSettings() async {

@@ -517,6 +517,20 @@ class ForemanCrewRoster extends StatelessWidget {
       case _Status.working:
         final entry = m.openEntry!;
         final since = (entry['clockIn'] as Timestamp?)?.toDate();
+        // Foremen clock in at the whole site, and the site is already named
+        // above the card — so their line is just the clock-in time.
+        if (m.role == 'foreman') {
+          return (
+            Icons.play_arrow,
+            Colors.black87,
+            since == null
+                ? tr('Clocked in', 'Entrada registrada')
+                : tr(
+                    'Clocked in since ${_formatTime(since)}',
+                    'Entrada desde las ${_formatTime(since)}',
+                  ),
+          );
+        }
         final where = _place(entry);
         return (
           Icons.play_arrow,
@@ -532,10 +546,12 @@ class ForemanCrewRoster extends StatelessWidget {
         return (
           Icons.restaurant,
           Colors.orange,
-          tr(
-            'On lunch · ${_place(m.openEntry!)}',
-            'En almuerzo · ${_place(m.openEntry!)}',
-          ),
+          m.role == 'foreman'
+              ? tr('On lunch', 'En almuerzo')
+              : tr(
+                  'On lunch · ${_place(m.openEntry!)}',
+                  'En almuerzo · ${_place(m.openEntry!)}',
+                ),
         );
       case _Status.clockedOut:
         return (
