@@ -619,17 +619,6 @@ class _InstallerDashboardState extends State<InstallerDashboard>
                           ),
                         ],
                       ),
-                      Text(
-                        tr(
-                          '${(progress * 100).toStringAsFixed(0)}% done',
-                          '${(progress * 100).toStringAsFixed(0)}% hecho',
-                        ),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
                     ],
                   ),
                 ],
