@@ -541,9 +541,10 @@ class ForemanCrewRoster extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
+                // Original budget first, then what's left of it.
                 Text(
-                  '${_fmtDays(m.areaTotalCrewDays! - m.areaConsumedCrewDays!)}'
-                  ' / ${_fmtDays(m.areaTotalCrewDays!)}',
+                  '${_fmtDays(m.areaTotalCrewDays!)}'
+                  ' / ${_fmtDays(m.areaTotalCrewDays! - m.areaConsumedCrewDays!)}',
                   style: TextStyle(
                     fontSize: 19,
                     fontWeight: FontWeight.w800,

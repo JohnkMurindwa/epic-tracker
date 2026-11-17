@@ -557,7 +557,8 @@ class _InstallerDashboardState extends State<InstallerDashboard>
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           child: Text(
-                            '${_fmtCrewDays(remaining)} / ${_fmtCrewDays(total)}',
+                            // Original budget first, then what's left.
+                            '${_fmtCrewDays(total)} / ${_fmtCrewDays(remaining)}',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 42,
