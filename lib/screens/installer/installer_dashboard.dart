@@ -468,18 +468,13 @@ class _InstallerDashboardState extends State<InstallerDashboard>
         final progress = total > 0 ? (consumed / total).clamp(0.0, 1.0) : 0.0;
 
         // Urgency colors: purple → orange → red as time runs out
-        Color cardColor;
-        String urgencyLabel;
-        if (progress >= 0.75) {
-          cardColor = const Color(0xFFD32F2F); // red — crunch time
-          urgencyLabel = tr('CRUNCH TIME', 'TIEMPO CRÍTICO');
-        } else if (progress >= 0.5) {
-          cardColor = const Color(0xFFEF6C00); // orange — halfway warning
-          urgencyLabel = tr('PUSH HARD', 'A DARLE DURO');
-        } else {
-          cardColor = Colors.black87;
-          urgencyLabel = tr('ON TRACK', 'A TIEMPO');
-        }
+        // Card color follows budget consumed (black → orange → red). No
+        // wording badge: hours burned say nothing about tile installed.
+        final Color cardColor = progress >= 0.75
+            ? const Color(0xFFD32F2F)
+            : progress >= 0.5
+            ? const Color(0xFFEF6C00)
+            : Colors.black87;
 
         return Center(
           child: FractionallySizedBox(
@@ -523,25 +518,6 @@ class _InstallerDashboardState extends State<InstallerDashboard>
                               ),
                             ),
                           ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Text(
-                          urgencyLabel,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
-                          ),
                         ),
                       ),
                     ],
