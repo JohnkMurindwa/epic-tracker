@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../services/auth_service.dart';
 import '../../services/app_strings.dart';
@@ -69,52 +68,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: Colors.black,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Column(
-                        children: [
-                          Text(
-                            'EPIC',
-                            style: GoogleFonts.bodoniModa(
-                              fontSize: 48,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFFB22222),
-                              letterSpacing: 5,
-                              height: 1.0,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'c e r a m i c',
-                                style: GoogleFonts.bodoniModa(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.grey[500],
-                                  letterSpacing: 2.5,
-                                ),
-                              ),
-                              Text(
-                                '+',
-                                style: GoogleFonts.bodoniModa(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFFB22222),
-                                  letterSpacing: 2.5,
-                                ),
-                              ),
-                              Text(
-                                's t o n e',
-                                style: GoogleFonts.bodoniModa(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.grey[500],
-                                  letterSpacing: 2.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                      // The official brand lockup (same asset as the
+                      // splash screen), on the black card.
+                      child: Image.asset(
+                        'assets/icon/epic_logo.png',
+                        width: 220,
+                        fit: BoxFit.contain,
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -247,52 +206,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: Colors.black,
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Column(
-                      children: [
-                        Text(
-                          'EPIC',
-                          style: GoogleFonts.bodoniModa(
-                            fontSize: 58,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFFB22222),
-                            letterSpacing: 5,
-                            height: 1.0,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'c e r a m i c',
-                              style: GoogleFonts.bodoniModa(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w400,
-                                color: Colors.grey[500],
-                                letterSpacing: 3,
-                              ),
-                            ),
-                            Text(
-                              '+',
-                              style: GoogleFonts.bodoniModa(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFFB22222),
-                                letterSpacing: 3,
-                              ),
-                            ),
-                            Text(
-                              's t o n e',
-                              style: GoogleFonts.bodoniModa(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w400,
-                                color: Colors.grey[500],
-                                letterSpacing: 3,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                    // The official brand lockup (same asset as the
+                    // splash screen), on the black card.
+                    child: Image.asset(
+                      'assets/icon/epic_logo.png',
+                      width: 280,
+                      fit: BoxFit.contain,
                     ),
                   ),
                   const SizedBox(height: 16),

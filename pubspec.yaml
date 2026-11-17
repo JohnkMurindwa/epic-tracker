@@ -39,6 +39,7 @@ flutter:
 
   assets:
     - assets/icon/app_icon.png
+    - assets/icon/epic_logo.png
 
 flutter_launcher_icons:
   android: true
