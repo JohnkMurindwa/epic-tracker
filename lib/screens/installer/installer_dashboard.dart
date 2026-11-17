@@ -214,6 +214,11 @@ class _InstallerDashboardState extends State<InstallerDashboard>
     }
   }
 
+  /// 2.0 → "2", 2.35 → "2.4".
+  String _fmtCrewDays(double v) => v == v.roundToDouble()
+      ? v.toStringAsFixed(0)
+      : v.toStringAsFixed(1);
+
   Future<void> _loadAreaInfo(String areaId) async {
     try {
       final doc = await _db.collection('areas').doc(areaId).get();
@@ -461,10 +466,6 @@ class _InstallerDashboardState extends State<InstallerDashboard>
 
         final remaining = total - consumed;
         final progress = total > 0 ? (consumed / total).clamp(0.0, 1.0) : 0.0;
-        // Crew days left reduces as more pairs are assigned:
-        // remaining labor ÷ number of pairs working it
-        final pairs = peopleCount / 2;
-        final crewDaysLeft = pairs > 0 ? remaining / pairs : remaining;
 
         // Urgency colors: purple → orange → red as time runs out
         Color cardColor;
@@ -551,14 +552,19 @@ class _InstallerDashboardState extends State<InstallerDashboard>
                   Center(
                     child: Column(
                       children: [
-                        Text(
-                          crewDaysLeft.toStringAsFixed(1),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 48,
-                            fontWeight: FontWeight.w900,
-                            height: 1.0,
-                            letterSpacing: -2,
+                        // Remaining / original budget, raw crew days —
+                        // the same arithmetic every dashboard shows.
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '${_fmtCrewDays(remaining)} / ${_fmtCrewDays(total)}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 42,
+                              fontWeight: FontWeight.w900,
+                              height: 1.0,
+                              letterSpacing: -1,
+                            ),
                           ),
                         ),
                         Text(

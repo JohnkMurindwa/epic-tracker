@@ -182,13 +182,11 @@ class ForemanCrewRoster extends StatelessWidget {
     final areaTotal = <String, double>{}; // area doc id → total crew days
     final areaConsumed = <String, double>{};
     final areaNameById = <String, String>{};
-    final areaPeople = <String, int>{}; // area doc id → people assigned
     for (final a in areas) {
       final data = a.data() as Map<String, dynamic>;
       areaTotal[a.id] = (data['totalCrewDays'] ?? 0).toDouble();
       areaConsumed[a.id] = (data['consumedCrewDays'] ?? 0).toDouble();
       areaNameById[a.id] = data['name'] as String? ?? '';
-      areaPeople[a.id] = (data['assignedPeople'] as List?)?.length ?? 0;
       for (final id in List<String>.from(data['assignedPeople'] ?? [])) {
         siteOf[id] = data['projectId'] as String? ?? '';
         areaOf[id] = data['name'] as String? ?? '';
@@ -220,10 +218,8 @@ class ForemanCrewRoster extends StatelessWidget {
       }
     });
 
-    // The area each person counts toward: where they worked today, or
-    // where they are assigned. The countdown divides by THESE head counts,
-    // so it always matches the people visible in the area — even when the
-    // assignment list and today's reality disagree.
+    // The area each person's card shows: where they worked today, or
+    // where they are assigned.
     String? effAreaOf(String id) {
       final entries = List<Map<String, dynamic>>.from(
         logsByUser[id]?['time_entries'] ?? [],
@@ -232,13 +228,6 @@ class ForemanCrewRoster extends StatelessWidget {
           ? entries.last['areaId'] as String?
           : null;
       return liveAreaId ?? areaIdOf[id];
-    }
-
-    final headCount = <String, int>{}; // area doc id → people in it today
-    for (final id in siteOf.keys) {
-      if (userData[id] == null) continue; // deleted account
-      final a = effAreaOf(id);
-      if (a != null) headCount[a] = (headCount[a] ?? 0) + 1;
     }
 
     final crew = <_Member>[];
@@ -260,8 +249,6 @@ class ForemanCrewRoster extends StatelessWidget {
               : areaOf[id],
           areaTotalCrewDays: areaTotal[effectiveAreaId],
           areaConsumedCrewDays: areaConsumed[effectiveAreaId],
-          areaPeopleCount:
-              headCount[effectiveAreaId] ?? areaPeople[effectiveAreaId] ?? 0,
           log: log,
         ),
       );
@@ -555,18 +542,19 @@ class ForemanCrewRoster extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  _fmtDays(m.areaDaysLeft),
+                  '${_fmtDays(m.areaTotalCrewDays! - m.areaConsumedCrewDays!)}'
+                  ' / ${_fmtDays(m.areaTotalCrewDays!)}',
                   style: TextStyle(
-                    fontSize: 22,
+                    fontSize: 19,
                     fontWeight: FontWeight.w800,
                     height: 1.1,
-                    color: m.areaDaysLeft < 0
+                    color: m.areaConsumedCrewDays! > m.areaTotalCrewDays!
                         ? const Color(0xFFA32D2D)
                         : Colors.black87,
                   ),
                 ),
                 Text(
-                  tr('days left', 'días restantes'),
+                  tr('crew days left', 'días restantes'),
                   style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                 ),
               ],
@@ -674,18 +662,6 @@ class _Member {
   final double? areaTotalCrewDays;
   final double? areaConsumedCrewDays;
 
-  /// People assigned to that area — the countdown divides by pairs.
-  final int areaPeopleCount;
-
-  /// Working days left at the area's current staffing:
-  /// (total − consumed) ÷ pairs, one pair = 2 people. Same formula as the
-  /// installer's crew-days card and the clock-out snapshots.
-  double get areaDaysLeft {
-    final remaining = areaTotalCrewDays! - areaConsumedCrewDays!;
-    final pairs = areaPeopleCount / 2;
-    return pairs > 0 ? remaining / pairs : remaining;
-  }
-
   final Map<String, dynamic>? log;
 
   _Member({
@@ -696,7 +672,6 @@ class _Member {
     required this.assignedArea,
     this.areaTotalCrewDays,
     this.areaConsumedCrewDays,
-    this.areaPeopleCount = 0,
     required this.log,
   });
 
