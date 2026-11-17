@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../models/user_model.dart';
 import '../../services/app_strings.dart';
 import '../../services/auth_service.dart';
@@ -78,15 +77,11 @@ class _AuthGateState extends State<AuthGate> {
                 color: Colors.black,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Text(
-                'EPIC',
-                style: GoogleFonts.bodoniModa(
-                  fontSize: 48,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFFB22222),
-                  letterSpacing: 5,
-                  height: 1.0,
-                ),
+              // The official brand lockup — same asset as splash and login.
+              child: Image.asset(
+                'assets/icon/epic_logo.png',
+                width: 220,
+                fit: BoxFit.contain,
               ),
             ),
             const SizedBox(height: 32),

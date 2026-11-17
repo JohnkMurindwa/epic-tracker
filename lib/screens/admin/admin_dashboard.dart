@@ -233,13 +233,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
       ),
       child: Row(
         children: [
-          const Text(
-            'EPIC',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-              color: Color(0xFFB22222),
-              fontFamily: 'Georgia',
+          // Official brand lockup, small, on its black chip.
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Image.asset(
+              'assets/icon/epic_logo.png',
+              height: 24,
+              fit: BoxFit.contain,
             ),
           ),
           const SizedBox(width: 8),
