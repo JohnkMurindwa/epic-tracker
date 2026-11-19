@@ -127,6 +127,14 @@ class _ForemanTimeTabState extends State<ForemanTimeTab> {
         return;
       }
       if (!mounted) return;
+      // A working foreman with an area of his own clocks into it, so his
+      // hours consume its crew days; otherwise site-level, as before.
+      final area = await _firestoreService.assignedAreaOn(
+        projectId,
+        widget.user.id,
+      );
+      if (!mounted) return;
+      final whereLabel = (area?['name'] as String?) ?? projectName;
       await _run(
         key,
         () => _firestoreService.clockInToArea(
@@ -135,9 +143,12 @@ class _ForemanTimeTabState extends State<ForemanTimeTab> {
           userRole: widget.user.role,
           projectId: projectId,
           projectName: projectName,
+          areaId: area?['id'] as String?,
+          areaName: area?['name'] as String?,
+          levelName: area?['levelName'] as String?,
           location: GeoPoint(position.latitude, position.longitude),
         ),
-        tr('Clocked in at $projectName', 'Entrada registrada en $projectName'),
+        tr('Clocked in at $whereLabel', 'Entrada registrada en $whereLabel'),
       );
     } catch (e) {
       if (!mounted) return;

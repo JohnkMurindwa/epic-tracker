@@ -282,6 +282,8 @@ class AssignmentSummaryTab extends StatelessWidget {
       ).where((id) => (names[id] ?? '').isNotEmpty),
       ...areaOfWorker.keys,
     }.toList()
+      // The site's foremen head the card; don't list them again as crew.
+      ..removeWhere(foremanIds.contains)
       ..sort((a, b) {
         final aHas = areaOfWorker.containsKey(a) ? 0 : 1;
         final bHas = areaOfWorker.containsKey(b) ? 0 : 1;

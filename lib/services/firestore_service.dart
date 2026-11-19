@@ -299,6 +299,31 @@ class FirestoreService {
     }
   }
 
+  /// The active area on [projectId] that [userId] is assigned to, or null.
+  /// Queried by assignment (same index the installer's area list uses),
+  /// then matched to the site — a person holds one area at a time anyway.
+  Future<Map<String, dynamic>?> assignedAreaOn(
+    String projectId,
+    String userId,
+  ) async {
+    try {
+      final snapshot = await _db
+          .collection('areas')
+          .where('assignedPeople', arrayContains: userId)
+          .where('status', isEqualTo: 'active')
+          .get()
+          .timeout(const Duration(seconds: 5));
+      for (final doc in snapshot.docs) {
+        if (doc.data()['projectId'] == projectId) {
+          return {'id': doc.id, ...doc.data()};
+        }
+      }
+    } catch (_) {
+      // Offline or unreadable: clock in at site level as before.
+    }
+    return null;
+  }
+
   // ─── DAILY LOGS (area-based time tracking) ────────────────
 
   /// Clock in at a specific area. Creates or updates today's daily log.

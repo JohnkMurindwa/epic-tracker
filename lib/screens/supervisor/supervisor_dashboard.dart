@@ -1612,7 +1612,14 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                       .collection('users')
                       .where(
                         'role',
-                        whereIn: ['installer', 'junior_installer', 'helper'],
+                        whereIn: [
+                          'installer',
+                          'junior_installer',
+                          'helper',
+                          // Working foremen lay tile too: assigning one to
+                          // an area makes his hours consume its crew days.
+                          'foreman',
+                        ],
                       )
                       .snapshots(),
                   builder: (context, snapshot) {
@@ -1620,11 +1627,15 @@ class _SupervisorDashboardState extends State<SupervisorDashboard>
                     var users = (snapshot.data?.docs ?? []).toList()
                       ..sort((a, b) => _nameOf(a).compareTo(_nameOf(b)));
 
-                    // Foremen only see workers assigned to this site
-                    if (widget.user.role == 'foreman' &&
-                        siteWorkers.isNotEmpty) {
+                    // A foreman sees this site's pool — plus himself, so he
+                    // can take an area of his own.
+                    if (widget.user.role == 'foreman') {
                       users = users
-                          .where((doc) => siteWorkers.contains(doc.id))
+                          .where(
+                            (doc) =>
+                                siteWorkers.contains(doc.id) ||
+                                doc.id == widget.user.id,
+                          )
                           .toList();
                     }
 

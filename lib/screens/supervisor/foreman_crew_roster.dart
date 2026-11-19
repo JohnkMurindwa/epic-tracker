@@ -515,8 +515,8 @@ class ForemanCrewRoster extends StatelessWidget {
                   ),
                 ),
                 // Where they are (or belong): the area, on its own line.
-                // Foremen work the whole site, so they get no area line.
-                if (!m.isMe && m.role != 'foreman') ...[
+                // A foreman gets one only when he took an area himself.
+                if (!m.isMe && (m.role != 'foreman' || m.assignedArea != null)) ...[
                   Text(
                     (m.openEntry?['areaName'] as String?) ??
                         m.assignedArea ??
@@ -534,7 +534,7 @@ class ForemanCrewRoster extends StatelessWidget {
           ),
           // The countdown: crew days left in their area, front and center.
           if (!m.isMe &&
-              m.role != 'foreman' &&
+              (m.role != 'foreman' || m.assignedArea != null) &&
               m.areaTotalCrewDays != null &&
               m.areaTotalCrewDays! > 0) ...[
             const SizedBox(width: 10),
@@ -574,9 +574,10 @@ class ForemanCrewRoster extends StatelessWidget {
       case _Status.working:
         final entry = m.openEntry!;
         final since = (entry['clockIn'] as Timestamp?)?.toDate();
-        // Foremen clock in at the whole site, and the site is already named
-        // above the card — so their line is just the clock-in time.
-        if (m.role == 'foreman') {
+        // A foreman clocked in at the whole site (no area on the entry)
+        // gets just the clock-in time; one working an area reads like any
+        // crew member, with the area on the next line.
+        if (m.role == 'foreman' && entry['areaId'] == null) {
           return (
             Icons.play_arrow,
             Colors.black87,
